@@ -17,6 +17,9 @@ class ZoeziBaseError extends Error {
 // the frontend we should do it in remix my suggestion
 router.post("/", async (req, res) => {
     try {
+        // end the connection
+        return res.end();
+        
         let { name, email, location, mpesaNumber, password, confirmPassword } = req.body;
 
         if (!name || !email || !location || !mpesaNumber || !password || !confirmPassword) {
