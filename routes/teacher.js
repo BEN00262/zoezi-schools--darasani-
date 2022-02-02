@@ -1,5 +1,7 @@
 const router = require("express").Router();
 const bcrypt = require("bcryptjs");
+const mongoose = require("mongoose");
+const rateLimiter = require("../utils").rateLimiter(mongoose.connection);
 const jwt = require("jsonwebtoken");
 const { IsTeacherAuthenticated, IsSchoolAuthenticated } = require("../configs");
 const { TeacherModel, ClassModel, SubjectModel } = require("../models")
@@ -114,7 +116,7 @@ router.put("/:teacherId", [ IsSchoolAuthenticated ], async (req, res) => {
 // what if the teacher is a class teacher :(
 // lets hold off on that for now
 
-router.post("/login", async (req, res) => {
+router.post("/login", [rateLimiter],async (req, res) => {
     try {
         const { email, password } = req.body;
 

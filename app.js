@@ -19,22 +19,23 @@ const app = express()
 
 app.use(express.json())
 app.use(express.urlencoded({extended:true}))
-// app.use(cors())
+app.use(cors())
 
 // simple routes
 app.use(express.static(path.join(__dirname, 'public/build')));
 
-app.get('/', (req, res) => {
+app.use("/api/school", SchoolRoute);
+app.use("/api/teacher", TeacherRoute);
+app.use("/api/grade", ClassRoute);
+app.use("/api/learner", StudentRoute);
+app.use("/api/subject", SubjectRoute);
+app.use("/api/analytics", AnalyticsRoute);
+app.use("/api/market", MarketRoute); // for purchasing stuff in the school solution :)
+
+// capture the remaining routes
+app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public/build', 'index.html'));
 });
-
-app.use("/school", SchoolRoute);
-app.use("/teacher", TeacherRoute);
-app.use("/grade", ClassRoute);
-app.use("/learner", StudentRoute);
-app.use("/subject", SubjectRoute);
-app.use("/analytics", AnalyticsRoute);
-app.use("/market", MarketRoute); // for purchasing stuff in the school solution :)
 
 // start mongodb
 mongoose.connect(process.env.MONGO_URI)

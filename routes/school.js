@@ -2,6 +2,7 @@ const { SchoolModel, TeacherModel, ClassModel, StudentModel, SubSubAccountModel 
 
 const bcrypt = require("bcryptjs");
 const mongoose = require("mongoose");
+const rateLimiter = require("../utils").rateLimiter(mongoose.connection);
 const jwt = require("jsonwebtoken");
 const { IsSchoolAuthenticated } = require("../configs");
 const router = require("express").Router();
@@ -15,11 +16,11 @@ class ZoeziBaseError extends Error {
 // here we deal with schools only ( tutadd verification later )
 // should we just use the previous model ama ? i think so ( the school solution should be used beyond though )
 // the frontend we should do it in remix my suggestion
-router.post("/", async (req, res) => {
+router.post("/", [rateLimiter], async (req, res) => {
     try {
         // end the connection
         return res.end();
-        
+
         let { name, email, location, mpesaNumber, password, confirmPassword } = req.body;
 
         if (!name || !email || !location || !mpesaNumber || !password || !confirmPassword) {
@@ -80,7 +81,7 @@ router.put("/:schoolId", [ IsSchoolAuthenticated ], async (req, res) => {
     }
 })
 
-router.post("/login", async (req, res) => {
+router.post("/login", [rateLimiter],async (req, res) => {
     try {
         const { email, password } = req.body;
 
