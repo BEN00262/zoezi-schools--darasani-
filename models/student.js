@@ -36,7 +36,7 @@ const childSchema = new mongoose.Schema({
         required: true
     },
 
-    // we dont really need it ( but its recommended )
+    // for the avatars
     profilePic: {
         type: String,
     },

@@ -29,6 +29,31 @@ const pipeline = (x) => [
 
 // create a learner, get analytics of the learner and a bunch of other stuffs
 // we are going to do that
+router.get("/profile/:studentId", [IsSchoolAuthenticated], async (req, res) => {
+    try {
+
+        let student = await StudentModel.findOne({ 
+            _id: mongoose.Types.ObjectId(req.params.studentId )
+        });
+
+        // we need to get the student or else we return a 404
+        if (!student) {
+            return res.status(404).json({
+                status: false,
+                message: `Student '${req.params.studentId}' does not exist`
+            })
+        }
+
+        return res.json({ student })
+    } catch(error) {
+        console.log(error);
+
+        return res.status(500).json({
+            status: false,
+            message: "Unknown Error!"
+        })   
+    }
+})
 // fetch the analytics somewhere else
 router.get("/:studentId", async (req, res) => {
     try {

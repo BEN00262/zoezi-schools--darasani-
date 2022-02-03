@@ -81,7 +81,8 @@ router.put("/:schoolId", [ IsSchoolAuthenticated ], async (req, res) => {
     }
 })
 
-router.post("/login", [rateLimiter],async (req, res) => {
+// [rateLimiter],
+router.post("/login", async (req, res) => {
     try {
         const { email, password } = req.body;
 
