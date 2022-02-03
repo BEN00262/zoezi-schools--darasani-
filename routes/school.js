@@ -21,9 +21,9 @@ router.post("/", [rateLimiter], async (req, res) => {
         // end the connection
         return res.end();
 
-        let { name, email, location, mpesaNumber, password, confirmPassword } = req.body;
+        let { name, email, location, mpesaNumber, password, registrationNumber, confirmPassword } = req.body;
 
-        if (!name || !email || !location || !mpesaNumber || !password || !confirmPassword) {
+        if (!name || !email || !location || !mpesaNumber || !password || !confirmPassword || !registrationNumber) {
             return res.status(400).json({
                 status: false,
                 message: "Please fill all the required fields"
@@ -34,7 +34,7 @@ router.post("/", [rateLimiter], async (req, res) => {
         let salt = await bcrypt.genSalt(10)
         password = await bcrypt.hash(password, salt)
 
-        let school = await SchoolModel.create({ name, email, location, mpesaNumber, password })
+        let school = await SchoolModel.create({ name, email, location, mpesaNumber, password, registrationNumber })
         if (!school) {
             throw new ZoeziBaseError("Failed to create school account")
         }

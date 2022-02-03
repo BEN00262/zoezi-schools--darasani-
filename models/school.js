@@ -36,6 +36,12 @@ const schoolSchema = new mongoose.Schema({
         unique: true
     },
 
+    registrationNumber: {
+        type: String,
+        unique: true,
+        required: true // required for account creation stuff
+    },
+
     // // the password 
     password: {
         type: String,
