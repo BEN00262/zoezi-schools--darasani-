@@ -13,5 +13,6 @@ module.exports = {
     SecondTierModel:require('../models/SecondTier'),
     MultiLevelModel:require("../models/multi-level"),
     PricingModel: require("./pricingModels"),
+    LibpaperModel: require("./libPapers"),
     ...require("./ZoeziGrades")
 }

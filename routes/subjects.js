@@ -17,6 +17,22 @@ router.get("/:classId", [IsSchoolAuthenticated], async (req, res) => {
         console.log(error);
         return res.status(500).json({ error: "Unknown Error!" }) 
     }
+});
+
+// get data on a single subject
+router.get("/information/:subjectId", [IsSchoolAuthenticated], async (req, res) => {
+    try {
+        // we get the subject and the general teacher of it :)
+        let subject = await SubjectModel.findOne({ 
+            _id: mongoose.Types.ObjectId(req.params.subjectId) 
+        })
+            .populate('teacher');
+
+        return res.json({ subject })
+    } catch(error) {
+        console.log(error);
+        return res.status(500).json({ error: "Unknown Error!" }) 
+    }
 })
 
 // create a subject and then link to the teacher
