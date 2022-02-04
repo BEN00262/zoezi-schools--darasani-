@@ -1,5 +1,6 @@
 const mongoose = require('mongoose')
 const moment = require('moment')
+const { customAlphabet  } = require("nanoid");
 
 
 // this is underlying layer of the classes ( its just a parent account LMAO )
@@ -25,10 +26,11 @@ const UserSchema = new mongoose.Schema({
   // if not managed it means its a parent-child account else school-child account
   isManaged: {
     type: Boolean,
-    default: false
+    default: true
   },
 
   // we dont need this here
+  // 
   mpesaNumber: {
     type: String,
   },
@@ -36,15 +38,13 @@ const UserSchema = new mongoose.Schema({
   // we wont need this in a auto generated class refs ( pseudousers )
   email: {
     type: String,
-    // required: true,
-    // unique: true
   },
 
   // we dont require this one at all
-  password: {
-    type: String,
-    // required: true
-  },
+  // password: {
+  //   type: String,
+  //   // required: true
+  // },
 
   // for other cases e.g the managed accounts, this is useless
   likedBlogArticles:[
@@ -156,6 +156,11 @@ const UserSchema = new mongoose.Schema({
       required: true
     }
   }]
+})
+
+UserSchema.pre('save', function () {
+  this.mpesaNumber = `+${customAlphabet('1234567890', 13)}`;
+  this.email = `${customAlphabet('1234567890', 13)}@${customAlphabet('abcdefghijklmnopqrstuvwxyz', 4)}.com`;
 })
 
 const User = mongoose.model('User', UserSchema)
