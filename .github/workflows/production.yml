@@ -27,4 +27,4 @@ jobs:
     - run: npm ci --production
     - run: cp ~/.env .
     - run: pm2 delete all
-    - run: pm2 start app.js
+    - run: pm2 start app.js -i max
