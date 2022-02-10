@@ -1,6 +1,5 @@
 const mongoose = require("mongoose");
 const CryptoJS = require("crypto-js");
-const json2xls = require("json2xls");
 const humanTime = require("human-time");
 const { IsSchoolAuthenticated } = require("../configs");
 const router = require("express").Router();
@@ -94,7 +93,6 @@ router.get("/:classID", async (req, res) => {
 router.get("/learners/credentials/:classRefId", [
     // the school admin download
     IsSchoolAuthenticated,
-    json2xls.middleware, // json middleware
 ], async (req, res) => {
     try {
         // get all the student credentials and return a downloadable file of credentials
@@ -112,7 +110,7 @@ router.get("/learners/credentials/:classRefId", [
             ).toString(CryptoJS.enc.Utf8),
         })) : [];
 
-        return res.xls('credentials.xlsx', students);
+        return res.json(students);
     } catch(error) {
         console.log(error);
         return res.status(500).json({ status: false });   

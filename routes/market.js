@@ -49,7 +49,7 @@ router.post("/purchase/:subscriptionGradeId/:subscriptionId", [IsSchoolAuthentic
 
         // get the grades selected and return the data
         let [subscription, grades_found, sub_sub_accounts, subscription_grade] = await Promise.all([
-            PricingModel.findOne({ _id: req.params.subscriptionId }),
+            PricingModel.findOne({ _id: req.params.subscriptionId, isDarasani: true }),
             ClassModel.find({ _id: { $in: grades.map(x => mongoose.Types.ObjectId(x)) } }).populate("classRef"),
             SubSubAccountModel.find({ parentID: { $in: grades.map(x => mongoose.Types.ObjectId(x)) }}),
             (is_special ? MultiLevelModel : ZoeziGradesModel).findOne({ _id: req.params.subscriptionGradeId })
@@ -116,7 +116,7 @@ router.get("/checkout/:subscriptionId", [IsSchoolAuthenticated], async (req, res
 
         // get the grades selected and return the data
         let [subscription, grades_found] = await Promise.all([
-            PricingModel.findOne({ _id: req.params.subscriptionId }),
+            PricingModel.findOne({ _id: req.params.subscriptionId, isDarasani: true }),
             ClassModel.find({ _id: { $in: grades }}).populate("classRef")
         ]);
 
@@ -130,7 +130,7 @@ router.get("/checkout/:subscriptionId", [IsSchoolAuthenticated], async (req, res
 // TODO: filter the prices to schools ones
 router.get("/subscriptions", [IsSchoolAuthenticated], async (req, res) => {
     try {
-        let prices = await PricingModel.find();
+        let prices = await PricingModel.find({ isDarasani: true });
         return res.json(prices.sort((a, b) => a.price - b.price))
     } catch(error) {
         console.log(error);

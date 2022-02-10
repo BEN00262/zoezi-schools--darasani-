@@ -6,6 +6,10 @@ const pricingSchema = new mongoose.Schema({
 		type: Number,
 		required: true,
 	},
+	isDarasani: {
+		type: Boolean,
+		default: false
+	},
 	days:{
 		type: Number,
 		required: true

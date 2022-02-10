@@ -97,6 +97,26 @@ router.post("/new", [IsSchoolAuthenticated], async (req, res) => {
     }
 });
 
+router.get("/export/credentials", [IsSchoolAuthenticated], async (req, res) => {
+    try {
+        let teachers = await TeacherModel.find({ schoolID: req.school._id })
+
+        teachers = (teachers || []).map(x => ({
+            name: x.name,
+            email: x.email,
+
+            password: x.encryptedPassword ? CryptoJS.AES.decrypt(
+                x.encryptedPassword, process.env.AES_ENCRYPTION_KEY
+            ).toString(CryptoJS.enc.Utf8) : "",
+        }))
+
+        return res.json(teachers);
+    } catch(error) {
+        console.log(error);
+        return res.status(500).json({ status: false });   
+    }
+})
+
 const list_of_teachers = yup.array().of(
     yup.object().shape({
         name: yup.string().required(),
