@@ -29,6 +29,11 @@ const teacherSchema = new mongoose.Schema({
         required: true
     },
 
+    // encrypted 
+    encryptedPassword: {
+       type: String, 
+    },
+
     // link to the subjects they are teaching
     subjects: [
         {

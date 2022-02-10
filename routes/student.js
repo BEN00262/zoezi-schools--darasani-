@@ -266,45 +266,33 @@ router.post("/import/:classId/:classRefId", [
             throw new ZoeziBaseError("The subscription object does not exist");
         }
 
-        // we also need to get the classref and update the students thing
-
-        // we have the object, now save the student there and the reverse :)
-
-
-        // also we need to assign a bunch
-        // this is one student ( how about many students )
-        let saved_students = await Promise.all(students.map(async ({ firstname, lastname, gender }) => {
+        let m_students = await Promise.all(students.map(async ({ firstname, lastname, gender }) => {
             // generate the unique username ( uuid ) and the password ( uuid )
             let username = nanoid(8) // for the username 
             let unhashed_password = nanoid(8) // for password
 
-            // somehow store the passwords
-            // we can push the name of the student and the username and the generated password
-            // the student can then use them
-
             let salt = await bcrypt.genSalt(10)
-            let password = await bcrypt.hash(unhashed_password, salt)
+            let password = await bcrypt.hash(unhashed_password, salt);
 
-            let student = await StudentModel.create([{
+            return ({
                 firstname, lastname, gender,
                 school: req.school.name,
                 // allows for the copying of the passwords by the admin for distribution
                 encryptedPassword: CryptoJS.AES.encrypt(unhashed_password, process.env.AES_ENCRYPTION_KEY).toString(),
-                username, password, sub_sub_accounts: [subsubaccount._id]
-            }], { session });
-
-            return student[0];
+                username, password,
+            })
         }))
 
+        let saved_students = await StudentModel.insertMany(m_students, { session });
         // add the student to the subscription object
-        subsubaccount.students.push(...saved_students.map(x => x._id));
+        subsubaccount.students.push(...saved_students.insertedIds);
 
         await Promise.all([
             subsubaccount.save(),
 
             // update the class ref ( the hidden _grade )
             ClassRef.findOneAndUpdate({ _id: req.params.classRefId }, {
-                $push: { students: { $each: saved_students.map(x => x._id) } }
+                $push: { students: { $each: saved_students.insertedIds } }
             }).session(session)
         ])
 

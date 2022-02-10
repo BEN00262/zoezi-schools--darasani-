@@ -16,6 +16,15 @@ const schoolSchema = new mongoose.Schema({
         default: false
     },
 
+    theme: {
+        type: String,
+        default: "#b2dfdb"
+    },
+
+    logo: {
+        type: String
+    },
+
     // make this geolocation data later
     location: {
         type: String,

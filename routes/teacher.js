@@ -3,6 +3,10 @@ const bcrypt = require("bcryptjs");
 const mongoose = require("mongoose");
 const rateLimiter = require("../utils").rateLimiter(mongoose.connection);
 const jwt = require("jsonwebtoken");
+const CryptoJS = require("crypto-js");
+const yup = require("yup");
+const { nanoid } = require("nanoid"); // for password generation
+const { convertToJson, multerUploader } = require("../utils");
 const { IsTeacherAuthenticated, IsSchoolAuthenticated } = require("../configs");
 const { TeacherModel, ClassModel, SubjectModel } = require("../models")
 
@@ -68,10 +72,16 @@ router.post("/new", [IsSchoolAuthenticated], async (req, res) => {
             })
         }
 
+        let encryptedPassword = CryptoJS.AES.encrypt(password, process.env.AES_ENCRYPTION_KEY).toString();
+
         let salt = await bcrypt.genSalt(10)
         password = await bcrypt.hash(password, salt)
 
-        await TeacherModel.create({ name, email, password, schoolID: req.school._id });
+        await TeacherModel.create({ 
+            name, email, password, 
+            schoolID: req.school._id,
+            encryptedPassword
+        });
 
         // send the email here ( we can also allow importation of teachers using csv )
         return res.status(201).json({ status: true });
@@ -86,6 +96,58 @@ router.post("/new", [IsSchoolAuthenticated], async (req, res) => {
         return res.status(500).json({ error: "Internal Server Error!" })
     }
 });
+
+const list_of_teachers = yup.array().of(
+    yup.object().shape({
+        name: yup.string().required(),
+        email: yup.string().required(),
+    })
+);
+
+router.post("/import", [
+    IsSchoolAuthenticated,
+    multerUploader.single("excelFile")
+], async (req, res) => {
+
+    try {
+
+        let teachers = await convertToJson(
+            req.file.buffer,
+            {
+                A: "name",
+                B: "email",
+            },
+            list_of_teachers
+        )
+
+
+        // generate the teachers object here then push it using updateMany
+
+        teachers = await Promise.all(teachers.map(async teacher => {
+            let unhashed_password = nanoid(8) // for password
+            let encryptedPassword = CryptoJS.AES.encrypt(unhashed_password, process.env.AES_ENCRYPTION_KEY).toString();
+
+            let salt = await bcrypt.genSalt(10)
+            let password = await bcrypt.hash(unhashed_password, salt);
+
+            return ({
+                name: teacher.name, email: teacher.email, password, 
+                schoolID: req.school._id,
+                encryptedPassword
+            })
+        }));
+
+        await TeacherModel.insertMany(teachers);
+        return res.json({ status: true })
+    } catch(error) {
+        console.log(error)
+
+        return res.status(500).json({
+            status: false,
+            message: error instanceof ZoeziBaseError ? error.message : "Unknown Error!"
+        })
+    }
+})
 
 // updating a teacher :)
 router.put("/:teacherId", [ IsSchoolAuthenticated ], async (req, res) => {

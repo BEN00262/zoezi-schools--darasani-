@@ -6,6 +6,7 @@ module.exports = async (req, res, next) => {
     // Bearer Auth
 
     // extract the token and verify then fetch the school
+
     let authToken = req.headers["authorization"];
 
     if(!authToken){

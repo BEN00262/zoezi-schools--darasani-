@@ -14,5 +14,7 @@ module.exports = {
     MultiLevelModel:require("../models/multi-level"),
     PricingModel: require("./pricingModels"),
     LibpaperModel: require("./libPapers"),
+    SubscriptionModel: require("./subscription"),
+    OnlineSchoolsModel: require("./OnlineSchools"),
     ...require("./ZoeziGrades")
 }

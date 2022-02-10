@@ -7,5 +7,7 @@ module.exports = {
     SubjectRoute: require("./subjects"),
     TeacherRoute: require("./teacher"),
     AnalyticsRoute: require("./analytics"),
-    MarketRoute: require("./market")
+    MarketRoute: require("./market"),
+    LibraryRoute: require("./library"),
+    SubscriptionsRoute: require("./subscriptions")
 }

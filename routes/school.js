@@ -50,21 +50,39 @@ router.post("/", [rateLimiter], async (req, res) => {
     }
 })
 
-
-router.put("/:schoolId", [ IsSchoolAuthenticated ], async (req, res) => {
+router.put("/theme", [IsSchoolAuthenticated], async (req, res) => {
     try {
-        const { name, email, location, mpesaNumber, password, confirmPassword } = req.body;
-        
+        const { theme } = req.body;
+
+        await SchoolModel.findOneAndUpdate({ _id: req.school._id }, {
+            $set: { theme }
+        })
+
+        return res.json({ status: true })
+    }catch(error) {
+        console.log(error);
+
+        return res.status(500).json({
+            status: false,
+            message: error instanceof ZoeziBaseError ? error.message : "Uknown Error!"
+        })
+    }
+})
+
+
+router.put("/", [ IsSchoolAuthenticated ], async (req, res) => {
+    try {
+        // TODO: write validators
+        let { email, mpesaNumber, password, confirmPassword } = req.body;
+
         if (password) {
             let salt = await bcrypt.genSalt(10)
-            pasword = await bcrypt.hash(password, salt)
+            password = await bcrypt.hash(password, salt)
         }
 
-        await SchoolModel.findOneAndUpdate({ _id: req.params.schoolId }, {
+        await SchoolModel.findOneAndUpdate({ _id: req.school._id }, {
             $set: {
-                name: name || req.school.name,
                 email: email || req.school.email,
-                location: location || req.school.email,
                 mpesaNumber: mpesaNumber || req.school.mpesaNumber,
                 password: password || req.school.password
             }
@@ -88,7 +106,7 @@ router.post("/login", async (req, res) => {
 
         let school = await SchoolModel.findOne({ email });
 
-        if (!school) {
+        if (!!!school) {
             return res.json({
                 status: false,
                 message: "Account does not exist. Please check your credentials and try again"
@@ -118,6 +136,15 @@ router.post("/login", async (req, res) => {
             status: false,
             message: error instanceof ZoeziBaseError ? error.message : "Uknown Error!"
         })
+    }
+})
+
+router.get("/profile", [IsSchoolAuthenticated], async (req, res) => {
+    try {
+        return res.json({ school: req.school })
+    } catch(error) {
+        console.log(error)
+        return res.status(500).json({})
     }
 })
 

@@ -11,11 +11,19 @@ const path = require("path");
 const { 
   TeacherRoute, SchoolRoute, ClassRoute, 
   StudentRoute, SubjectRoute, AnalyticsRoute, 
-  MarketRoute 
+  MarketRoute, 
+  LibraryRoute,
+  SubscriptionsRoute
 } = require("./routes");
+const { SubscriptionsListener } = require("./listeners")
 
 const PORT = process.env.PORT || 3500
 const app = express()
+
+const server = require('http').createServer(app);
+
+// this is the function to do the informing through socket io :)
+const checkIfOnlineAndInform = require("./socketio")(server); // socketIO
 
 app.use(express.json())
 app.use(express.urlencoded({extended:true}))
@@ -27,10 +35,12 @@ app.use(express.static(path.join(__dirname, 'public/build')));
 app.use("/api/school", SchoolRoute);
 app.use("/api/teacher", TeacherRoute);
 app.use("/api/grade", ClassRoute);
+app.use("/api/library", LibraryRoute);
 app.use("/api/learner", StudentRoute);
 app.use("/api/subject", SubjectRoute);
 app.use("/api/analytics", AnalyticsRoute);
 app.use("/api/market", MarketRoute); // for purchasing stuff in the school solution :)
+app.use("/api/subscriptions", SubscriptionsRoute);
 
 // capture the remaining routes
 app.get('*', (req, res) => {
@@ -40,7 +50,10 @@ app.get('*', (req, res) => {
 // start mongodb
 mongoose.connect(process.env.MONGO_URI)
   .then(_ => {
-      app.listen(PORT, () => {
+      // listen for the subscriptions :)
+      SubscriptionsListener(checkIfOnlineAndInform);
+      // run the server
+      server.listen(PORT, () => {
         console.log("server started listening on port: "+PORT)
       })
   })
