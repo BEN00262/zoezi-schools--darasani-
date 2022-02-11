@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 const CryptoJS = require("crypto-js");
 const humanTime = require("human-time");
-const { IsSchoolAuthenticated } = require("../configs");
+const { IsSchoolAuthenticated, IsTeacherAuthenticated } = require("../configs");
 const router = require("express").Router();
 const { 
     ClassModel, SchoolModel, 
@@ -22,7 +22,7 @@ router.get("/all", [IsSchoolAuthenticated],async (req, res) => {
             .populate("classTeacher")
             .populate("classRef");
 
-        return res.status(200).json({ grades })
+        return res.status(200).json({ school: req.school.name, grades })
     } catch(error) {
         console.log(error);
         return res.status(500).json({ status: false })
@@ -72,7 +72,7 @@ router.get("/subscriptions/:classId", [IsSchoolAuthenticated],async (req, res) =
 
 
 // gets one class data
-router.get("/:classID", async (req, res) => {
+router.get("/:classID", [IsTeacherAuthenticated], async (req, res) => {
     try { 
         // we need to populate some other stuff too
         let grade = await ClassModel.findOne({ _id: req.params.classID })
@@ -92,7 +92,7 @@ router.get("/:classID", async (req, res) => {
 
 router.get("/learners/credentials/:classRefId", [
     // the school admin download
-    IsSchoolAuthenticated,
+    IsTeacherAuthenticated,
 ], async (req, res) => {
     try {
         // get all the student credentials and return a downloadable file of credentials
@@ -117,7 +117,7 @@ router.get("/learners/credentials/:classRefId", [
     }
 })
 
-router.get("/learners/:classRefId", [IsSchoolAuthenticated],async (req, res) => {
+router.get("/learners/:classRefId", [IsTeacherAuthenticated],async (req, res) => {
     try {
         let _classRef = await ClassRef.findOne({ _id: req.params.classRefId }).populate("students");
         return res.json({ learners: _classRef ? _classRef.students : [] });
@@ -186,7 +186,7 @@ router.post("/", [IsSchoolAuthenticated],async (req, res) => {
 })
 
 // we only allow only updating the class teachers only 
-router.put("/:classId", async (req, res) => {
+router.put("/:classId", [IsSchoolAuthenticated], async (req, res) => {
     const session = await mongoose.startSession();
     session.startTransaction();
 

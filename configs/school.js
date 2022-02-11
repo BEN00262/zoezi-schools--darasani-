@@ -2,22 +2,15 @@ const jwt = require("jsonwebtoken");
 const { SchoolModel } = require("../models")
 
 module.exports = async (req, res, next) => {
-    // handles ensuring that its the school that is logged in
-    // Bearer Auth
-
-    // extract the token and verify then fetch the school
-
     let authToken = req.headers["authorization"];
 
     if(!authToken){
-        // ip ban
         return res.status(403).json({ message:"Authorization required" })
     }
 
     authToken = authToken.split(" ")[1]
 
     try{
-        // this is secure
         let decoded =  await jwt.verify(authToken, process.env.JWT_SECRET);
 
         if(!decoded){

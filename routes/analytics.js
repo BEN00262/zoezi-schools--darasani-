@@ -12,10 +12,10 @@ const {
 } = require("../models");
 
 // child account stuff middlewares
-const { IsSchoolAuthenticated } = require('../configs');
+const { IsSchoolAuthenticated, IsTeacherAuthenticated } = require('../configs');
 
 
-router.use([IsSchoolAuthenticated]);
+router.use([IsTeacherAuthenticated]);
 
 // TODO: write validators for paths in this route
 

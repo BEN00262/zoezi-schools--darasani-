@@ -16,11 +16,9 @@ class ZoeziBaseError extends Error {
 // here we deal with schools only ( tutadd verification later )
 // should we just use the previous model ama ? i think so ( the school solution should be used beyond though )
 // the frontend we should do it in remix my suggestion
-router.post("/", [rateLimiter], async (req, res) => {
+// [rateLimiter],
+router.post("/",  async (req, res) => {
     try {
-        // end the connection
-        return res.end();
-
         let { name, email, location, mpesaNumber, password, registrationNumber, confirmPassword } = req.body;
 
         if (!name || !email || !location || !mpesaNumber || !password || !confirmPassword || !registrationNumber) {
@@ -35,6 +33,7 @@ router.post("/", [rateLimiter], async (req, res) => {
         password = await bcrypt.hash(password, salt)
 
         let school = await SchoolModel.create({ name, email, location, mpesaNumber, password, registrationNumber })
+        
         if (!school) {
             throw new ZoeziBaseError("Failed to create school account")
         }

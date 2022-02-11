@@ -27,7 +27,7 @@ router.get("/all", [IsSchoolAuthenticated], async (req, res) => {
 })
 
 // getting the teacher's view :)
-router.get("/:teacherId", [IsSchoolAuthenticated],async (req, res) => {
+router.get("/:teacherId", [IsTeacherAuthenticated],async (req, res) => {
     try {
         // we get the grades they are teaching and the subjects assigned
         let teacher = await TeacherModel.findOne({ 
@@ -62,14 +62,18 @@ router.get("/:teacherId", [IsSchoolAuthenticated],async (req, res) => {
 router.post("/new", [IsSchoolAuthenticated], async (req, res) => {
     try {
         // validate the phone numbers using expressjs validator
-        let { name, email, password, confirmPassword } = req.body;
+        let { name, email, autoGeneratePassword, password, confirmPassword } = req.body;
 
         // we should auto generate the passwords
-        if (!name || !email || !password || !confirmPassword) {
+        if (!name || !email || (!autoGeneratePassword && (!password || !confirmPassword))) {
             return res.status(400).json({
                 status: false,
                 message: "Please fill all the required fields"
             })
+        }
+
+        if (autoGeneratePassword) {
+            password = nanoid(8) // for password
         }
 
         let encryptedPassword = CryptoJS.AES.encrypt(password, process.env.AES_ENCRYPTION_KEY).toString();
@@ -169,23 +173,96 @@ router.post("/import", [
     }
 })
 
-// updating a teacher :)
-router.put("/:teacherId", [ IsSchoolAuthenticated ], async (req, res) => {
+router.get("/credential/:teacherId", [ IsTeacherAuthenticated ], async (req, res) => {
     try {
-        const { name, email, password, confirmPassword } = req.body;
-
-        if (password) {
-            let salt = await bcrypt.genSalt(10)
-            pasword = await bcrypt.hash(password, salt)
+        // we check if it is a teacher that's logged in and ensure they own the id :)
+        if (req.teacher && req.teacher._id.toString() !== req.params.teacherId) {
+            // this is an invalid operation ( the teacher should not be able to access the credentials )
+            return res.status(403).json({
+                status: false,
+                message: "Forbidden access"
+            })
         }
 
-        await TeacherModel.findOneAndUpdate({ _id: req.params._id }, {
-            $set: {
-                name: name || req.teacher.name,
-                email: email || req.teacher.email,
-                password: password || req.teacher.password
-            }
+        // fetch the teacher and extract the credential
+        let _teacher = await TeacherModel.findOne({ _id: req.params.teacherId, schoolID: req.school._id });
+
+        if (!_teacher) {
+            return res.status(404).json({
+                status: false,
+                message: "The teacher does not exist"
+            })
+        }
+
+        if (!_teacher.encryptedPassword) {
+            return res.status(404).json({
+                status: false,
+                message: "The credential is empty"
+            })
+        }
+
+        let decrypted_password = CryptoJS.AES.decrypt(
+            _teacher.encryptedPassword, process.env.AES_ENCRYPTION_KEY
+        ).toString(CryptoJS.enc.Utf8)
+
+        return res.json({ status: true, decrypted_password })
+    } catch(error) {
+        console.log(error)
+
+        return res.status(500).json({
+            status: false,
+            message: error instanceof ZoeziBaseError ? error.message : "Unknown Error!"
         })
+    }
+})
+
+// updating a teacher :)
+router.put("/:teacherId", [ IsTeacherAuthenticated ], async (req, res) => {
+    try {
+        let { 
+            name, email, updatePasswords, 
+            autoGeneratePassword, password, confirmPassword 
+        } = req.body;
+
+        let unhashed_password = "";
+
+        if (updatePasswords) {
+            let salt = await bcrypt.genSalt(10);
+
+            // we need to check that a password is passed in the case of auto generated is turned off
+            if (!autoGeneratePassword && !password && !confirmPassword) {
+                return res.status(400).json({
+                    status: false,
+                    message: "Please fill all the required fields"
+                })
+            }
+
+            unhashed_password = autoGeneratePassword ? nanoid(8) : password
+
+            password = await bcrypt.hash(
+                unhashed_password, 
+                salt
+            ); // for password
+        }
+
+        let _teacher = await TeacherModel.findOne({ _id: req.params.teacherId, schoolID: req.school._id });
+
+        if (!_teacher) {
+            return res.status(404).json({
+                status: false,
+                message: "The teacher doesnt exist in the system"
+            })
+        }
+
+        // encrypt the password and we are all good :)
+        let encryptedPassword = unhashed_password ? CryptoJS.AES.encrypt(unhashed_password, process.env.AES_ENCRYPTION_KEY).toString() : ""
+
+        _teacher.name = name || _teacher.name;
+        _teacher.email = email || _teacher.email;
+        _teacher.password = password || _teacher.password;
+        _teacher.encryptedPassword = encryptedPassword || _teacher.encryptedPassword;
+
+       await _teacher.save();
 
         return res.json({ status: true })
     } catch(error) {
@@ -197,12 +274,12 @@ router.put("/:teacherId", [ IsSchoolAuthenticated ], async (req, res) => {
 // deleting a teacher from the system
 // what if the teacher is a class teacher :(
 // lets hold off on that for now
+// [rateLimiter]
 
-router.post("/login", [rateLimiter],async (req, res) => {
+router.post("/login", async (req, res) => {
     try {
         const { email, password } = req.body;
-
-        let teacher = await TeacherModel.findOne({ email })
+        let teacher = await TeacherModel.findOne({ email });
 
         if (!teacher) {
             return res.json({
@@ -220,8 +297,6 @@ router.post("/login", [rateLimiter],async (req, res) => {
             })
         }
 
-        // JWT_SECRET ( we are signing with this )
-        // create the jwt and return it
         let token = jwt.sign({ _id: teacher._id, school: false }, process.env.JWT_SECRET, {
             expiresIn: '72h' // after 3 days is more than enough for me
         });

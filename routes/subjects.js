@@ -1,13 +1,13 @@
 const router = require("express").Router();
 const mongoose = require("mongoose");
-const { IsSchoolAuthenticated } = require("../configs");
+const { IsSchoolAuthenticated, IsTeacherAuthenticated } = require("../configs");
 const { SubjectModel, TeacherModel } = require("../models")
 
 // responsible for creating subjects for the different classes by the class teachers
 // ask around to find the flow of things later
 
 // get all the subjects within a given grade
-router.get("/:classId", [IsSchoolAuthenticated], async (req, res) => {
+router.get("/:classId", [IsTeacherAuthenticated], async (req, res) => {
     try {
         let subjects = await SubjectModel.find({ grade: mongoose.Types.ObjectId(req.params.classId) })
             .populate('teacher');
@@ -20,7 +20,7 @@ router.get("/:classId", [IsSchoolAuthenticated], async (req, res) => {
 });
 
 // get data on a single subject
-router.get("/information/:subjectId", [IsSchoolAuthenticated], async (req, res) => {
+router.get("/information/:subjectId", [IsTeacherAuthenticated], async (req, res) => {
     try {
         // we get the subject and the general teacher of it :)
         let subject = await SubjectModel.findOne({ 
@@ -108,7 +108,7 @@ router.put("/:classID/:subjectId", async (req, res) => {
     }
 })
 
-router.delete("/:classId/:subjectId", async (req, res) => {
+router.delete("/:classId/:subjectId", [IsSchoolAuthenticated], async (req, res) => {
     // this is also an atomic operation
     const session = await mongoose.startSession();
     session.startTransaction();
