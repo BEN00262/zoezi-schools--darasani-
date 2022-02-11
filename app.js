@@ -13,7 +13,8 @@ const {
   StudentRoute, SubjectRoute, AnalyticsRoute, 
   MarketRoute, 
   LibraryRoute,
-  SubscriptionsRoute
+  SubscriptionsRoute,
+  MiscRoute
 } = require("./routes");
 const { SubscriptionsListener } = require("./listeners")
 
@@ -26,7 +27,7 @@ const server = require('http').createServer(app);
 const checkIfOnlineAndInform = require("./socketio")(server); // socketIO
 
 app.use(express.json())
-app.use(express.urlencoded({extended:true}))
+app.use(express.urlencoded({ extended:true }))
 app.use(cors())
 
 // simple routes
@@ -34,6 +35,7 @@ app.use(express.static(path.join(__dirname, 'public/build')));
 
 app.use("/api/school", SchoolRoute);
 app.use("/api/teacher", TeacherRoute);
+app.use("/api/misc", MiscRoute);
 app.use("/api/grade", ClassRoute);
 app.use("/api/library", LibraryRoute);
 app.use("/api/learner", StudentRoute);

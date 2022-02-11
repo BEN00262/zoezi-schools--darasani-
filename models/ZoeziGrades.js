@@ -2,6 +2,41 @@ const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 let objectID = mongoose.Schema.Types.ObjectId;
 
+let QuesSchema = new Schema({
+	question:{
+		type:String,
+		required:true
+	},
+        options:{
+	  	type:String,
+		required:false
+	},
+	answer:{
+		type:String
+	},
+	additionalInfo:{
+		type:String
+	},
+	grade:{
+		type:String,
+		required:true
+	},
+	subject:{
+		type:String,
+		required:true
+	},
+	isExperimental:{
+        	type: Boolean,
+        	default: false
+    	},
+	isSample:{
+		type:Boolean,
+		default:false
+	},
+	subjectID:{type:objectID,ref:"subject"},
+	questionTag:[{Tag:{type:String,default:"notag"}}]
+});
+
 let subjectSchema = new Schema({
 	subject:{
 		type:String,
@@ -36,5 +71,6 @@ const GradeSchema = new Schema({
 // used for the markets page and a whole other things
 module.exports = {
 	ZoeziGradesModel: mongoose.model('grades',GradeSchema),
-	ZoeziSubjectsModel: mongoose.model('subject',subjectSchema)
+	ZoeziSubjectsModel: mongoose.model('subject',subjectSchema),
+	ZoeziQuestion: mongoose.model('ques', QuesSchema)
 }

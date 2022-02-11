@@ -1,6 +1,6 @@
 const mongoose = require('mongoose')
 const moment = require('moment')
-const { customAlphabet  } = require("nanoid");
+const { customAlphabet, nanoid  } = require("nanoid");
 
 
 // this is underlying layer of the classes ( its just a parent account LMAO )
@@ -159,8 +159,8 @@ const UserSchema = new mongoose.Schema({
 })
 
 UserSchema.pre('save', function () {
-  this.mpesaNumber = `+${customAlphabet('1234567890', 13)}`;
-  this.email = `${customAlphabet('1234567890', 13)}@${customAlphabet('abcdefghijklmnopqrstuvwxyz', 4)}.com`;
+  this.mpesaNumber = `+Managed_${nanoid(13)}`;
+  this.email = `${nanoid(13)}@${customAlphabet('abcdefghijklmnopqrstuvwxyz', 4)}.com`;
 })
 
 const User = mongoose.model('User', UserSchema)

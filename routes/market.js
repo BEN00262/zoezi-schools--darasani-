@@ -127,7 +127,6 @@ router.get("/checkout/:subscriptionId", [IsSchoolAuthenticated], async (req, res
     }
 })
 
-// TODO: filter the prices to schools ones
 router.get("/subscriptions", async (req, res) => {
     try {
         let prices = await PricingModel.find({ isDarasani: true });

@@ -178,7 +178,7 @@ router.post("/", [IsSchoolAuthenticated],async (req, res) => {
         console.log(error)
         return res.status(500).json({ 
             status: false, 
-            message: error instanceof ZoeziBaseError ? error.message : "Uknown Error!" 
+            message: error instanceof ZoeziBaseError ? error.message : "Unknown Error!" 
         })
     } finally {
         session.endSession();

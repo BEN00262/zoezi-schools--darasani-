@@ -12,7 +12,7 @@ const {
 } = require("../models");
 
 // child account stuff middlewares
-const { IsSchoolAuthenticated, IsTeacherAuthenticated } = require('../configs');
+const { IsTeacherAuthenticated } = require('../configs');
 
 
 router.use([IsTeacherAuthenticated]);
@@ -144,10 +144,17 @@ router.get("/learner/:studentId/:paperID/:isSpecial?", async (req, res) => {
                 },
                 { $sort: { when: -1 } },
                 { $limit: 3 },
-                { $project: { subject: 1, score: 1 } }
+                { $project: { subject: 1, score: 1, grade: 1 } }
             ]);
 
-            return res.json({ plottable }) // this part fulfills the contract we are all good :)
+            return res.json({ 
+                plottable: plottable.map(x => ({
+                    ...x,
+                    paperID: "",
+                    grade: x.grade,
+                    isSpecial: false
+                }))
+            }) // this part fulfills the contract we are all good :)
         }
 
         // we fetch the special one :)
@@ -161,13 +168,16 @@ router.get("/learner/:studentId/:paperID/:isSpecial?", async (req, res) => {
             },
             { $sort: { updatedAt: -1 } }, // sort by the last time the student did the paper 
             { $limit: 3 }, // get the top three ( the latest ones )
-            { $project: { subject: 1, createdAt: 1, updatedAt: 1, "attemptTree.score": 1 } },
+            { $project: { subject: 1, createdAt: 1, updatedAt: 1, gradeName: 1, paperID: 1, "attemptTree.score": 1 } },
         ]);
 
         return res.json({ 
             plottable: plottable.map(x => ({
                 _id: x._id,
                 subject: x.subject,
+                paperID: x.paperID,
+                grade: x.gradeName,
+                isSpecial: true,
                 score: {
                     passed: attemptTree.score.passed,
                     total: attemptTree.score.total,
@@ -377,7 +387,7 @@ router.get("/:classId/special-paper-analytics/:multi_level/:second_tier/:mid_tie
             //     )
         }))
 
-        return res.json({ data })
+        return res.json(data)
     } catch(error) {
         console.log(error);
 

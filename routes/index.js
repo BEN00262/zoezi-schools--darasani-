@@ -9,5 +9,6 @@ module.exports = {
     AnalyticsRoute: require("./analytics"),
     MarketRoute: require("./market"),
     LibraryRoute: require("./library"),
-    SubscriptionsRoute: require("./subscriptions")
+    SubscriptionsRoute: require("./subscriptions"),
+    MiscRoute: require("./misc")
 }

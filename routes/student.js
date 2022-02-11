@@ -69,10 +69,12 @@ router.get("/:studentId", async (req, res) => {
             })
         }
 
+        let _pipeline = pipeline(student);
+
         // get the last active time now ( and show it )
         let [special_time, normal_time] = await Promise.all([
-            specialPaperHistoryModel.aggregate(pipeline(student)),
-            UserDataModel.aggregate(pipeline(student))
+            specialPaperHistoryModel.aggregate(_pipeline),
+            UserDataModel.aggregate(_pipeline)
         ])
 
         let lastTime = [...special_time, ...normal_time].map(y => y.updatedAt).filter(x => x);
@@ -90,6 +92,7 @@ router.get("/:studentId", async (req, res) => {
                 lastname: student.lastname,
                 username: student.username,
                 lastActive: lastTime ? humanTime(lastTime): "never",
+                _id: student._id,
     
                 password: CryptoJS.AES.decrypt(
                     student.encryptedPassword, process.env.AES_ENCRYPTION_KEY
@@ -119,6 +122,8 @@ router.post("/:classId/:classRefId", [IsSchoolAuthenticated], async (req, res) =
     try {
         // we can get a school's name from the system
         const { firstname, lastname, gender } = req.body;
+
+        console.log(req.body);
 
         if (!firstname || !lastname || !gender ) {
             return res.status(400).json({
@@ -277,6 +282,7 @@ router.post("/import/:classId/:classRefId", [
             return ({
                 firstname, lastname, gender,
                 school: req.school.name,
+                sub_sub_accounts: [subsubaccount._id],
                 // allows for the copying of the passwords by the admin for distribution
                 encryptedPassword: CryptoJS.AES.encrypt(unhashed_password, process.env.AES_ENCRYPTION_KEY).toString(),
                 username, password,
@@ -284,15 +290,16 @@ router.post("/import/:classId/:classRefId", [
         }))
 
         let saved_students = await StudentModel.insertMany(m_students, { session });
+
         // add the student to the subscription object
-        subsubaccount.students.push(...saved_students.insertedIds);
+        subsubaccount.students.push(...saved_students.map(x => x._id));
 
         await Promise.all([
             subsubaccount.save(),
 
             // update the class ref ( the hidden _grade )
             ClassRef.findOneAndUpdate({ _id: req.params.classRefId }, {
-                $push: { students: { $each: saved_students.insertedIds } }
+                $push: { students: { $each: saved_students.map(x => x._id) } }
             }).session(session)
         ])
 

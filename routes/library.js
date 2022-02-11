@@ -7,11 +7,8 @@ const {
     LibpaperModel,
     specialPaperHistoryModel: SpecialPaperHistory 
 } = require("../models");
-const { IsSchoolAuthenticated } = require("../configs");
+const { IsSchoolAuthenticated, IsTeacherAuthenticated } = require("../configs");
 
-const findActiveSubscription = subscriptions => {
-    return subscriptions.filter(x => x.status && x.subscription_end > new Date()).map(({ gradeName }) => gradeName)
-}
 // start building the fetching of the library
 // fetching the papers in the libraries :)
 const getMaxDate = (a, b) => moment(a).isAfter(moment(b)) ? a : b
@@ -24,7 +21,7 @@ class ZoeziBaseError extends Error {
 }
 
 router.get("/special_paper/:studentId/:paperId/:savedStateId", [
-    IsSchoolAuthenticated
+    IsTeacherAuthenticated
 ], async (req, res) => {
     try {
         // in this case we really dont care about the prev
@@ -60,7 +57,7 @@ router.get("/special_paper/:studentId/:paperId/:savedStateId", [
 })
 
 router.get('/normal_paper/:studentId/:paperId', [
-    IsSchoolAuthenticated
+    IsTeacherAuthenticated
 ], async(req, res) => {
     try {
         // get the paper we are after
@@ -82,30 +79,19 @@ router.get('/normal_paper/:studentId/:paperId', [
 
 // we need to get the subscriptions stuff on the current default account
 router.get('/:classId/:studentId', [
-    IsSchoolAuthenticated
+    IsTeacherAuthenticated
 ], async(req, res) => {
     // we get the subscriptions filter from the current account context
     // we need to get the current sub sub account
     let subsubaccount = await SubSubAccountModel.findOne({
         parentID: mongoose.Types.ObjectId(req.params.classId),
         schoolOrOrganizationID: req.school._id
-    })
+    });
 
     // if there is no any just crash
     if (!subsubaccount) {
         throw new ZoeziBaseError("The subscription object does not exist");
     }
-    // req.current_sub_sub_account we can access the account stuff now :)
-    // let activeSubscriptions = findActiveSubscription(subsubaccount.subscriptions);
-
-    // if (!activeSubscriptions) {
-    //     // just return an empty library if we dont have anything
-    //     return res.json({ library: [] })
-    // }
-
-    // we are going to do two data processing pipelines ... we should find a cleaner way
-    // this code was written in rush ... forgive me for the bad practices :)
-    // match by the current student and the currently engaged account :)
 
     try {
         let [library, special_paper_library] = await Promise.all([
@@ -201,7 +187,6 @@ router.get('/:classId/:studentId', [
                     return {
                         grade: key,
                         papers: gradesWithin,
-                        navigation: gradesWithin.map(({ _id }) => _id).join(",")
                     }
                 })
             })

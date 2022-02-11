@@ -65,7 +65,7 @@ router.post("/:classID", [IsSchoolAuthenticated],async (req, res) => {
         await session.abortTransaction();
 
         console.log(error);
-        return res.status(500).json({ error: "Unknown Error!" })
+        return res.status(500).json({ status: false, error: "Unknown Error!" })
     } finally {
         session.endSession();
     }
