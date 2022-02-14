@@ -1,5 +1,6 @@
+const mongoose = require("mongoose");
 const { IsSchoolAuthenticated } = require("../configs");
-const { ZoeziGradesModel } = require("../models");
+const { ZoeziGradesModel, SubjectModel } = require("../models");
 const { subjectFind } = require("../utils");
 
 const router = require("express").Router();
@@ -24,15 +25,33 @@ router.get("/grades", [IsSchoolAuthenticated], async (req, res) => {
     }
 })
 
-router.get("/subjects/:gradeName", [IsSchoolAuthenticated], async(req, res) => {
+// filter out subjects already chosen :)
+router.get("/subjects/:gradeName/:classId", [IsSchoolAuthenticated], async(req, res) => {
     try {
+        let class_subjects = await SubjectModel.aggregate([
+            { $match: { grade: mongoose.Types.ObjectId(req.params.classId) } },
+            { $project: { name: 1 } }
+        ]);
+
         if (req.params.gradeName === "eight") {
-            return res.json({ status: true, subjects: subjectFind(req.params.gradeName) })
+            return res.json({ 
+                status: true, 
+                subjects: subjectFind(req.params.gradeName).filter(
+                    x => !(class_subjects.findIndex(y => y.name === x) > -1)
+                )
+            })
         }
 
-        let grade = await ZoeziGradesModel.findOne({ grade: req.params.gradeName }).populate("subjects");
+        let grade = await ZoeziGradesModel.findOne({ 
+            grade: req.params.gradeName 
+        }).populate("subjects");
 
-        return res.json({ status: true, subjects: grade ? grade.subjects.map(x => x.subject) : [] })
+        return res.json({ 
+            status: true, 
+            subjects: (grade ? grade.subjects.map(x => x.subject) : []).filter(
+                x => !(class_subjects.findIndex(y => y.name === x) > -1)
+            ) 
+        })
     }catch(error) {
         console.log(error);
         return res.status(500).json({ status: false, error: "Internal server error!"})
