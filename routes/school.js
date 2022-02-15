@@ -3,6 +3,7 @@ const { SchoolModel, TeacherModel, ClassModel, StudentModel, SubSubAccountModel 
 const bcrypt = require("bcryptjs");
 const mongoose = require("mongoose");
 const rateLimiter = require("../utils").rateLimiter(mongoose.connection);
+const { multerUploader } = require("../utils");
 const jwt = require("jsonwebtoken");
 const { IsSchoolAuthenticated } = require("../configs");
 const router = require("express").Router();
@@ -13,6 +14,22 @@ class ZoeziBaseError extends Error {
     }
 }
 
+router.put("/logo", [
+    IsSchoolAuthenticated, multerUploader.single("logoPic")
+], async (req, res) => {
+    try {
+        // use multer here :)
+        await SchoolModel.findOneAndUpdate({ _id: req.school._id }, {
+            $set: {
+                logo: req.file ? `data:${req.file.mimetype};base64,${Buffer.from(req.file.buffer).toString("base64")}` : req.school.logo
+            }
+        })
+
+        return res.json({ status: true })
+    } catch(error) {
+        return res.status(500).json({ status: false })
+    }
+})
 // here we deal with schools only ( tutadd verification later )
 // should we just use the previous model ama ? i think so ( the school solution should be used beyond though )
 // the frontend we should do it in remix my suggestion
