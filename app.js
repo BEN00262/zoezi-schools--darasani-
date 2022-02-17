@@ -7,6 +7,7 @@ const mongoose = require("mongoose")
 const cors = require("cors");
 const express = require("express");
 const path = require("path");
+const compression = require("compression");
 
 const { 
   TeacherRoute, SchoolRoute, ClassRoute, 
@@ -19,7 +20,14 @@ const {
 const { SubscriptionsListener } = require("./listeners")
 
 const PORT = process.env.PORT || 3500
-const app = express()
+const app = express();
+
+app.use(compression({ filter: (req, res) => {
+  if (req.headers['x-no-compression']) {
+    return false
+  }
+  return compression.filter(req, res)
+}}))
 
 const server = require('http').createServer(app);
 

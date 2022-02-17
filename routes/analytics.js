@@ -1,11 +1,16 @@
 const router = require('express').Router();
 const mongoose = require('mongoose');
 const moment = require('moment');
+const {
+    param,
+    validationResult
+} = require("express-validator")
 
 const { 
     SecondTierModel, 
     MultiLevelModel, UserDataModel:UserDetailsModel, 
     specialPaperHistoryModel: SpecialPaperHistory, 
+    MidTierLevelModel,
     SubSubAccountModel,
     StudentModel,
     LibpaperModel
@@ -26,7 +31,30 @@ router.use([IsTeacherAuthenticated]);
 
 // new subjects analysis on per student basis ( much more efficient )
 // as long as your are authenticated but for now we will scope it to a school
-router.get("/subject/:classId/:studentId/:subject_name", async (req, res) => {
+router.get("/subject/:classId/:studentId/:subject_name",[
+    param('classId')
+        .custom(value => {
+            if (!mongoose.isValidObjectId(value)){
+                throw new Error("Invalid classId");
+            }
+        }),
+    param('studentId')
+        .custom(value => {
+            if (!mongoose.isValidObjectId(value)){
+                throw new Error("Invalid studentId");
+            }
+        })
+],async (req, res) => {
+    // const errors = validationResult(req);
+
+    // if (!errors.isEmpty()) {
+    //     return res.status(400).json({
+    //         status: false,
+    //         errors: errors.map(({ param, msg }) => `${param} | ${msg}`)
+    //     })
+    // }
+
+
     try {
         const { classId, subject_name, studentId } = req.params;
 
@@ -134,7 +162,7 @@ router.get("/learner/:studentId/:paperID/:isSpecial?", async (req, res) => {
         const { studentId, paperID, isSpecial } = req.params; // get the data and then ue it to fetch the data
 
         // we sort by the updatedAt and then take the top 3 stuff :)
-        if (!!!isSpecial) {
+        if (!isSpecial || !(isSpecial.toLowerCase() === "special")) {
             let plottable = await LibpaperModel.aggregate([
                 {
                     $match: {
@@ -161,7 +189,7 @@ router.get("/learner/:studentId/:paperID/:isSpecial?", async (req, res) => {
         let plottable = await SpecialPaperHistory.aggregate([
             {
                 $match: {
-                    paperID,
+                    paperID: mongoose.Types.ObjectId(paperID),
                     isMarked: true, 
                     studentID: req.params.studentId,
                 }
@@ -179,8 +207,8 @@ router.get("/learner/:studentId/:paperID/:isSpecial?", async (req, res) => {
                 grade: x.gradeName,
                 isSpecial: true,
                 score: {
-                    passed: attemptTree.score.passed,
-                    total: attemptTree.score.total,
+                    passed: x.attemptTree.score.passed,
+                    total: x.attemptTree.score.total,
                 }
             })) 
         });
