@@ -31,6 +31,7 @@ app.use(express.urlencoded({ extended:true }))
 app.use(cors())
 
 // simple routes
+app.use('*/img', express.static(path.join(__dirname,'/public/img')));
 app.use(express.static(path.join(__dirname, 'public/build')));
 
 app.use("/api/school", SchoolRoute);
