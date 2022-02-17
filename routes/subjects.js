@@ -43,21 +43,23 @@ router.post("/:classID", [IsSchoolAuthenticated],async (req, res) => {
     session.startTransaction();
 
     try {
-        const { subject, teacherId } = req.body;
+        // we are getting an array of this :)
+        const { subjects } = req.body;
+        const gradeId = mongoose.Types.ObjectId(req.params.classID);
 
         // get the teacher
-        let teacher = await TeacherModel.findOne({ _id: teacherId }).session(session);
+        await Promise.all(subjects.map(async ({ teacherId, subject }) => {
+            let teacher = await TeacherModel.findOne({ _id: teacherId }).session(session);
 
-        let subject_created = await SubjectModel.create([{
-            name: subject,
-            grade: mongoose.Types.ObjectId(req.params.classID), // verify this before commiting it here
-            teacher: teacher._id // this is the teacher responsible for the subject in the grade
-        }], { session })
+            let subject_created = await SubjectModel.create([{
+                name: subject,
+                grade: gradeId, // verify this before commiting it here
+                teacher: teacher._id // this is the teacher responsible for the subject in the grade
+            }], { session });
 
-        // link the class to the teacher then
-        await TeacherModel.findOneAndUpdate({ _id: teacher._id }, {
-            $push: { subjects: subject_created[0]._id }
-        }).session(session);
+            teacher.subjects.push(subject_created[0]._id)
+            await teacher.save();
+        }))
 
         await session.commitTransaction();
         return res.status(201).json({ status: true })

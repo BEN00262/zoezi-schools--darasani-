@@ -115,15 +115,16 @@ class ZoeziBaseError extends Error {
     }
 }
 
-router.post("/:classId/:classRefId", [IsSchoolAuthenticated], async (req, res) => {
+router.post("/:classId/:classRefId", [
+    IsSchoolAuthenticated, 
+    multerUploader.single("profilePic")
+], async (req, res) => {
     const session = await mongoose.startSession();
     session.startTransaction();
 
     try {
         // we can get a school's name from the system
         const { firstname, lastname, gender } = req.body;
-
-        console.log(req.body);
 
         if (!firstname || !lastname || !gender ) {
             return res.status(400).json({
@@ -157,16 +158,10 @@ router.post("/:classId/:classRefId", [IsSchoolAuthenticated], async (req, res) =
             throw new ZoeziBaseError("The subscription object does not exist");
         }
 
-        // we also need to get the classref and update the students thing
-
-        // we have the object, now save the student there and the reverse :)
-
-
-        // also we need to assign a bunch 
-        // AES_ENCRYPTION_KEY
         let student = await StudentModel.create([{
             firstname, lastname, gender: gender.toLowerCase(),
             school: req.school.name, 
+            profilePic: req.file ? `data:${req.file.mimetype};base64,${Buffer.from(req.file.buffer).toString("base64")}` : "",
             // used for copying the password and someother stuff
             encryptedPassword: CryptoJS.AES.encrypt(unhashed_password, process.env.AES_ENCRYPTION_KEY).toString(),
             username, password, sub_sub_accounts: [ subsubaccount._id ]
@@ -191,6 +186,69 @@ router.post("/:classId/:classRefId", [IsSchoolAuthenticated], async (req, res) =
             status: true,
             credentials: { username, password: unhashed_password }
         })
+    } catch(error) {
+        await session.abortTransaction();
+        console.log(error);
+
+        return res.status(500).json({
+            status: false,
+            message: error instanceof ZoeziBaseError ? error.message : "Unknown Error!"
+        })
+    } finally {
+        session.endSession();
+    }
+})
+
+router.put("/:classId/:classRefId/:learnerId", [
+    IsSchoolAuthenticated, 
+    multerUploader.single("profilePic")
+], async (req, res) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+        const { firstname, lastname, gender, regeneratePassword } = req.body;
+
+        if (gender && !["boy", "girl"].includes(gender)) {
+            return res.status(400).json({
+                status: false,
+                message: `'${gender}' unrecognized as a gender`
+            })
+        }
+
+        let studentToBeUpdated = await StudentModel.findOne({
+            _id: mongoose.Types.ObjectId(req.params.learnerId)
+        }).session(session);
+
+        if (!studentToBeUpdated) {
+            return res.status("404").json({
+                status: false,
+                message: "Learner provided does not exist"
+            })
+        }
+
+        let password = "";
+        let unhashed_password = "";
+
+        if (regeneratePassword) {
+            unhashed_password = nanoid(8) // for password
+            let salt = await bcrypt.genSalt(10)
+            password = await bcrypt.hash(unhashed_password, salt)
+        }
+        
+        let encryptedPassword = unhashed_password ? CryptoJS.AES.encrypt(unhashed_password, process.env.AES_ENCRYPTION_KEY).toString() : studentToBeUpdated.encryptedPassword;
+        
+        studentToBeUpdated.firstname = firstname || studentToBeUpdated.firstname;
+        studentToBeUpdated.lastname = lastname || studentToBeUpdated.lastname;
+        studentToBeUpdated.gender = gender.toLowerCase() /*just incase :)*/ || studentToBeUpdated.gender;
+        studentToBeUpdated.password = password || studentToBeUpdated.password;
+        studentToBeUpdated.encryptedPassword = encryptedPassword;
+        studentToBeUpdated.profilePic = req.file ? `data:${req.file.mimetype};base64,${Buffer.from(req.file.buffer).toString("base64")}` : studentToBeUpdated.profilePic;
+
+        await studentToBeUpdated.save();
+        await session.commitTransaction();
+
+        return res.status(201).json({ status: true })
     } catch(error) {
         await session.abortTransaction();
         console.log(error);
