@@ -17,5 +17,6 @@ module.exports = {
     LibpaperModel: require("./libPapers"),
     SubscriptionModel: require("./subscription"),
     OnlineSchoolsModel: require("./OnlineSchools"),
+    SpecialPaperModel: require("./specialPaper"),
     ...require("./ZoeziGrades")
 }

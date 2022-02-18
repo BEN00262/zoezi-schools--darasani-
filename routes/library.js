@@ -5,6 +5,7 @@ const humanTime = require("human-time");
 const { 
     SubSubAccountModel,
     LibpaperModel,
+    SpecialPaperModel,
     specialPaperHistoryModel: SpecialPaperHistory 
 } = require("../models");
 const { IsSchoolAuthenticated, IsTeacherAuthenticated } = require("../configs");
