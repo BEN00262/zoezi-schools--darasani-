@@ -115,6 +115,24 @@ router.get("/learners/credentials/:classRefId", [
         console.log(error);
         return res.status(500).json({ status: false });   
     }
+});
+
+router.get("/gender-distribution/:classRefId", [IsTeacherAuthenticated], async (req, res) => {
+    try {
+        let _classRef = await ClassRef.findOne({ _id: req.params.classRefId }).populate("students");
+
+        if (!_classRef) {
+            throw new Error("The given class does not exist");
+        }
+        
+        return res.json(_classRef.students.reduce((acc, x) => ({
+            ...acc, [`${x.gender}s`]: acc[`${x.gender}s`] + 1
+        }), { boys: 0, girls: 0 }))
+
+    } catch(error) {
+        console.log(error);
+        return res.status(500).json({ status: false })
+    }
 })
 
 router.get("/learners/:classRefId", [IsTeacherAuthenticated],async (req, res) => {
