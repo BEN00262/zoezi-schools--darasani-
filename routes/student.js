@@ -94,6 +94,7 @@ router.get("/:studentId", async (req, res) => {
                 lastActive: lastTime ? humanTime(lastTime): "never",
                 _id: student._id,
                 profilePic: student.profilePic,
+                gender: student.gender,
                 password: CryptoJS.AES.decrypt(
                     student.encryptedPassword, process.env.AES_ENCRYPTION_KEY
                 ).toString(CryptoJS.enc.Utf8)

@@ -10,6 +10,11 @@ const teacherSchema = new mongoose.Schema({
         required: true
     },
 
+    // the teacher's profile pic :)
+    profilePic: {
+        type: String
+    },
+
     //  link back to the school
     schoolID: {
         type: mongoose.Types.ObjectId,

@@ -8,7 +8,7 @@ const cors = require("cors");
 const express = require("express");
 const path = require("path");
 const compression = require("compression");
-
+const favicon = require("serve-favicon");
 const { 
   TeacherRoute, SchoolRoute, ClassRoute, 
   StudentRoute, SubjectRoute, AnalyticsRoute, 
@@ -40,6 +40,7 @@ app.use(cors())
 
 // simple routes
 app.use('*/img', express.static(path.join(__dirname,'/public/img')));
+app.use(favicon(path.join(__dirname, 'public', 'img/zoezi.ico')))
 app.use(express.static(path.join(__dirname, 'public/build')));
 
 app.use("/api/school", SchoolRoute);

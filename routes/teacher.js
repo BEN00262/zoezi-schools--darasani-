@@ -8,7 +8,7 @@ const yup = require("yup");
 const { nanoid } = require("nanoid"); // for password generation
 const { convertToJson, multerUploader } = require("../utils");
 const { IsTeacherAuthenticated, IsSchoolAuthenticated } = require("../configs");
-const { TeacherModel, ClassModel, SubjectModel } = require("../models")
+const { TeacherModel, ClassModel, SubjectModel } = require("../models");
 
 class ZoeziBaseError extends Error {
     constructor(message) {
@@ -59,7 +59,10 @@ router.get("/:teacherId", [IsTeacherAuthenticated],async (req, res) => {
 
 // handle the creation and management of the teachers in the system
 // a teacher can be able to change their pasword but the main teacher ( admin ) is able to see the traffic
-router.post("/new", [IsSchoolAuthenticated], async (req, res) => {
+router.post("/new", [
+    IsSchoolAuthenticated,
+    multerUploader.single("profilePic")
+], async (req, res) => {
     try {
         // validate the phone numbers using expressjs validator
         let { name, email, autoGeneratePassword, password, confirmPassword } = req.body;
@@ -84,7 +87,8 @@ router.post("/new", [IsSchoolAuthenticated], async (req, res) => {
         await TeacherModel.create({ 
             name, email, password, 
             schoolID: req.school._id,
-            encryptedPassword
+            encryptedPassword,
+            profilePic: req.file ? `data:${req.file.mimetype};base64,${Buffer.from(req.file.buffer).toString("base64")}` : ""
         });
 
         // send the email here ( we can also allow importation of teachers using csv )
@@ -217,7 +221,10 @@ router.get("/credential/:teacherId", [ IsTeacherAuthenticated ], async (req, res
 })
 
 // updating a teacher :)
-router.put("/:teacherId", [ IsTeacherAuthenticated ], async (req, res) => {
+router.put("/:teacherId", [ 
+    IsTeacherAuthenticated,
+    multerUploader.single("profilePic")
+], async (req, res) => {
     try {
         let { 
             name, email, updatePasswords, 
@@ -226,11 +233,11 @@ router.put("/:teacherId", [ IsTeacherAuthenticated ], async (req, res) => {
 
         let unhashed_password = "";
 
-        if (updatePasswords) {
+        if (updatePasswords.toLowerCase() === "true") {
             let salt = await bcrypt.genSalt(10);
 
             // we need to check that a password is passed in the case of auto generated is turned off
-            if (!autoGeneratePassword && !password && !confirmPassword) {
+            if (autoGeneratePassword.toLowerCase() === "false" && !password && !confirmPassword) {
                 return res.status(400).json({
                     status: false,
                     message: "Please fill all the required fields"
@@ -238,11 +245,7 @@ router.put("/:teacherId", [ IsTeacherAuthenticated ], async (req, res) => {
             }
 
             unhashed_password = autoGeneratePassword ? nanoid(8) : password
-
-            password = await bcrypt.hash(
-                unhashed_password, 
-                salt
-            ); // for password
+            password = await bcrypt.hash(unhashed_password, salt); // for password
         }
 
         let _teacher = await TeacherModel.findOne({ _id: req.params.teacherId, schoolID: req.school._id });
@@ -261,6 +264,7 @@ router.put("/:teacherId", [ IsTeacherAuthenticated ], async (req, res) => {
         _teacher.email = email || _teacher.email;
         _teacher.password = password || _teacher.password;
         _teacher.encryptedPassword = encryptedPassword || _teacher.encryptedPassword;
+        _teacher.profilePic = req.file ? `data:${req.file.mimetype};base64,${Buffer.from(req.file.buffer).toString("base64")}` : _teacher.profilePic;
 
        await _teacher.save();
 

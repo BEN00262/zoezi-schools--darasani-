@@ -197,7 +197,10 @@ router.get("/", [IsSchoolAuthenticated], async (req, res) => {
 
 
         return res.json({ 
-            school: req.school.name,
+            school: {
+                name: req.school.name,
+                logo: req.school.logo
+            },
             metrics: {
                 teachers, grades: grades_found.length, learners: learners.reduce((acc, x) => acc + x.students,0) 
             }

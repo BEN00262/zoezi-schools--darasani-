@@ -97,7 +97,7 @@ router.get("/subject/:classId/:studentId/:subject_name",[
             // restrict the data passed to the firstname, lastname and the profilePic 
             StudentModel.findOne({
                 _id: mongoose.Types.ObjectId(studentId) 
-            }).select('firstname lastname profilePic')
+            }).select('firstname lastname profilePic gender')
         ]);
 
         /*
