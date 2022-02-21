@@ -1,8 +1,11 @@
-const { SchoolModel, TeacherModel, ClassModel, StudentModel, SubSubAccountModel } = require("../models");
-
+const { 
+    SchoolModel, TeacherModel, 
+    ClassModel, StudentModel, 
+    SubSubAccountModel 
+} = require("../models");
 const bcrypt = require("bcryptjs");
 const mongoose = require("mongoose");
-const rateLimiter = require("../utils").rateLimiter(mongoose.connection);
+// const rateLimiter = require("../utils").rateLimiter(mongoose.connection);
 const { multerUploader } = require("../utils");
 const jwt = require("jsonwebtoken");
 const { IsSchoolAuthenticated } = require("../configs");
@@ -13,6 +16,42 @@ class ZoeziBaseError extends Error {
         super(message)
     }
 }
+
+
+// fetch the gender analytics for the current classes in the school :)
+router.get("/gender-analytics", [
+    IsSchoolAuthenticated
+], async (req, res) => {
+    try {
+        // get the classes then resolve the classRef and get the students then filter by the gender
+        let school_grades = await ClassModel.find({ schoolID: req.school._id.toString(), isClosed: false })
+            .populate("classRef");
+
+        if (school_grades === null) {
+            throw new Error("Failed to fetch school grades");
+        }
+
+        let student_ids = school_grades.map(x => x.classRef.students).reduce((acc, y) => [ ...acc, ...y ], []);
+
+        if (!student_ids) {
+            return res.json({ status: false, error: "Failed to fetch students"})
+        }
+
+        // get the students _id
+        let genders = await StudentModel.aggregate([
+            { $match: { _id: { $in: student_ids }} },
+            { $project: { gender: 1 }}
+        ]);
+        return res.json(genders.reduce((acc, x) => ({
+            ...acc, [`${x.gender}s`]: acc[`${x.gender}s`] + 1
+        }), { boys: 0, girls: 0 }));
+
+    } catch(error) {
+        console.log(error);
+        return res.status(500).json({ status: false })        
+    }
+})
+
 
 router.put("/logo", [
     IsSchoolAuthenticated, multerUploader.single("logoPic")

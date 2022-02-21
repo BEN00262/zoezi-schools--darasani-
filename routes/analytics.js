@@ -176,6 +176,7 @@ router.get("/learner/:studentId/:paperID/:isSpecial?", async (req, res) => {
             ]);
 
             return res.json({ 
+                time_per_question: 0, // this does not apply to this type of questions
                 plottable: plottable.map(x => ({
                     ...x,
                     paperID: "",
@@ -199,7 +200,17 @@ router.get("/learner/:studentId/:paperID/:isSpecial?", async (req, res) => {
             { $project: { subject: 1, createdAt: 1, updatedAt: 1, gradeName: 1, paperID: 1, "attemptTree.score": 1 } },
         ]);
 
-        return res.json({ 
+        let _times = plottable.map(x => ({ createdAt: x.createdAt, updatedAt: x.updatedAt }))
+        
+        // time per paper ( average time ) --> divide by the number of questions to get the data :)
+        let time_per_paper = _times.reduce(
+            (acc, y) => acc + moment(y.updatedAt).diff(moment(y.createdAt))
+            , 0) / (_times.length || 1)
+
+        return res.json({
+            time_per_question: Math.ceil(
+                time_per_paper / (plottable.length ? plottable[0].attemptTree.score.total : 1)
+            ),
             plottable: plottable.map(x => ({
                 _id: x._id,
                 subject: x.subject,
