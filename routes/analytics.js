@@ -14,6 +14,7 @@ const {
     SubSubAccountModel,
     StudentModel,
     LibpaperModel,
+    SpecialPaperModel,
     ZoeziQuestionModel
 } = require("../models");
 
@@ -202,8 +203,8 @@ router.get("/learner/:studentId/:paperID/:isSpecial?", async (req, res) => {
 
                 // we need an attempt tree :)
                 attempt_trees: {
-                    questions: [],
-                    // this is ugly :(
+                    isSpecial: false,
+                    paper: {},
                     trees
                 },
 
@@ -227,7 +228,14 @@ router.get("/learner/:studentId/:paperID/:isSpecial?", async (req, res) => {
             },
             { $sort: { updatedAt: -1 } }, // sort by the last time the student did the paper 
             { $limit: 3 }, // get the top three ( the latest ones )
-            { $project: { subject: 1, createdAt: 1, updatedAt: 1, gradeName: 1, paperID: 1, "attemptTree.score": 1 } },
+            // { 
+            //     // we get the attemptTree and then use it :) for the purposes
+            //     $project: { 
+            //         subject: 1, createdAt: 1, 
+            //         updatedAt: 1, gradeName: 1, 
+            //         paperID: 1, attemptTree: 1 
+            //     } 
+            // },
         ]);
 
         let _times = plottable.map(x => ({ createdAt: x.createdAt, updatedAt: x.updatedAt }))
@@ -235,7 +243,11 @@ router.get("/learner/:studentId/:paperID/:isSpecial?", async (req, res) => {
         // time per paper ( average time ) --> divide by the number of questions to get the data :)
         let time_per_paper = _times.reduce(
             (acc, y) => acc + moment(y.updatedAt).diff(moment(y.createdAt))
-            , 0) / (_times.length || 1)
+            , 0) / (_times.length || 1);
+
+
+        // hpw the hell are we 
+        let _firstPaperID = plottable.length > 0 ? plottable[0].paperID : null;
 
         return res.json({
             time_per_question: Math.ceil(
@@ -243,10 +255,44 @@ router.get("/learner/:studentId/:paperID/:isSpecial?", async (req, res) => {
             ),
             // we need an attempt tree :)
             // for this we can resolve the questions one time and then merge the trees together :)
+            // resolve the paper its kind of the questions :)
+            // paperID
+            /*
+                if (prevState) {
+                    prevState = {
+                        ...prevState,
+                        attemptTree: {
+                            ...prevState.attemptTree,
+                            pages: prevState.attemptTree.pages.reduce((acc, {page, content}) => ({
+                                    ...acc,
+                                    [page]: content
+                            }), {})
+                        }
+                    }
+                };
+            */
             attempt_trees: {
-                questions: [],
-                // this is ugly :(
-                trees: []
+                isSpecial: true,
+                // this is the questions
+                paper: _firstPaperID ? (await SpecialPaperModel.findOne({ _id: _firstPaperID }).populate("questions")) : {},
+                
+                // get the trees :)
+                trees: (plottable || []).map(x => ({
+                    ...x,
+                    attemptTree: {
+                        ...x.attemptTree,
+                        pages: x.attemptTree.pages.reduce((acc, {page, content}) => ({
+                                ...acc,
+                                [page]: content
+                        }), {})
+                    },
+
+                    // to keep the api happy :)
+                    score: {
+                        passed: x.attemptTree.score.passed,
+                        total: x.attemptTree.score.total,
+                    }
+                })) // these are the trees to be used in rendering the paper :)
             },
             plottable: plottable.map(x => ({
                 _id: x._id,
