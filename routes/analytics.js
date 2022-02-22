@@ -13,7 +13,8 @@ const {
     MidTierLevelModel,
     SubSubAccountModel,
     StudentModel,
-    LibpaperModel
+    LibpaperModel,
+    ZoeziQuestionModel
 } = require("../models");
 
 // child account stuff middlewares
@@ -162,6 +163,7 @@ router.get("/learner/:studentId/:paperID/:isSpecial?", async (req, res) => {
         const { studentId, paperID, isSpecial } = req.params; // get the data and then ue it to fetch the data
 
         // we sort by the updatedAt and then take the top 3 stuff :)
+        // we have the data already :)
         if (!isSpecial || !(isSpecial.toLowerCase() === "special")) {
             let plottable = await LibpaperModel.aggregate([
                 {
@@ -172,11 +174,39 @@ router.get("/learner/:studentId/:paperID/:isSpecial?", async (req, res) => {
                 },
                 { $sort: { when: -1 } },
                 { $limit: 3 },
-                { $project: { subject: 1, score: 1, grade: 1 } }
+                { $project: { subject: 1, score: 1, grade: 1, content: 1, userID: 1 } }
             ]);
+
+            // fetch the papers :) and then resolve the paper one way :) what the hell ---> feels like a slow query but we have to do it
+            // TODO: optimize the query later
+            // we really dont care for the userID ---> so we just pass it :)
+            // we get the _ids for the questions to resolve
+            // get the first plottable, resolve the questions and we are good to go :)
+
+            // let firstAttempt = plottable.length > 0 ? plottable[0].content.map(x => x.content.question) : [];
+            let trees = await Promise.all(plottable.map(async (y) => {
+                return ({
+                    ...y,
+                    content: await Promise.all(y.content.map(async (x) => ({
+                        ...x,
+                        content: {
+                            ...x.content,
+                            question: await ZoeziQuestionModel.findOne({ _id: x.content.question})
+                        }
+                    })))
+                })
+            })) // the trees ( which will be used )
 
             return res.json({ 
                 time_per_question: 0, // this does not apply to this type of questions
+
+                // we need an attempt tree :)
+                attempt_trees: {
+                    questions: [],
+                    // this is ugly :(
+                    trees
+                },
+
                 plottable: plottable.map(x => ({
                     ...x,
                     paperID: "",
@@ -211,6 +241,13 @@ router.get("/learner/:studentId/:paperID/:isSpecial?", async (req, res) => {
             time_per_question: Math.ceil(
                 time_per_paper / (plottable.length ? plottable[0].attemptTree.score.total : 1)
             ),
+            // we need an attempt tree :)
+            // for this we can resolve the questions one time and then merge the trees together :)
+            attempt_trees: {
+                questions: [],
+                // this is ugly :(
+                trees: []
+            },
             plottable: plottable.map(x => ({
                 _id: x._id,
                 subject: x.subject,

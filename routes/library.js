@@ -61,16 +61,12 @@ router.get('/normal_paper/:studentId/:paperId', [
     IsTeacherAuthenticated
 ], async(req, res) => {
     try {
-        // get the paper we are after
-        // const { _id: currentSubAccountID } = JSON.parse(req.session.current_sub_account);
-        
         let content = await LibpaperModel.findOne({
             studentID: req.params.studentId,
-            // subsubAccountID: currentSubAccountID, // we can ignore this one
             _id: req.params.paperId
         }).populate('content.content.question');
 
-        res.json(content)
+        return res.json(content)
     } catch (error) {
         console.log(error);
         return res.status(500).json({})

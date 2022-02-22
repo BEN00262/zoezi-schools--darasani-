@@ -72,5 +72,5 @@ const GradeSchema = new Schema({
 module.exports = {
 	ZoeziGradesModel: mongoose.model('grades',GradeSchema),
 	ZoeziSubjectsModel: mongoose.model('subject',subjectSchema),
-	ZoeziQuestion: mongoose.model('ques', QuesSchema)
+	ZoeziQuestionModel: mongoose.model('ques', QuesSchema)
 }
