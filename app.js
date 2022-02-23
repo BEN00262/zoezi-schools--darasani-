@@ -9,6 +9,7 @@ const express = require("express");
 const path = require("path");
 const compression = require("compression");
 const favicon = require("serve-favicon");
+const helmet = require("helmet")
 const { 
   TeacherRoute, SchoolRoute, ClassRoute, 
   StudentRoute, SubjectRoute, AnalyticsRoute, 
@@ -23,11 +24,30 @@ const PORT = process.env.PORT || 3500
 const app = express();
 
 app.use(compression({ filter: (req, res) => {
-  if (req.headers['x-no-compression']) {
-    return false
-  }
-  return compression.filter(req, res)
+  return req.headers['x-no-compression'] ? false : compression.filter(req, res)
 }}))
+
+app.use(helmet());
+app.use(helmet({
+  crossOriginEmbedderPolicy: false,
+  contentSecurityPolicy: {
+    directives: {
+      "script-src": ["'self'"],
+      "style-src": ["'self'","'unsafe-inline'",'https://cdn.jsdelivr.net', 'https://fonts.googleapis.com', 'https://cdnjs.cloudflare.com'],
+      "font-src": ["https://embed.tawk.to", 'https://fonts.gstatic.com', 'https://cdn.iconmonstr.com'],
+      "img-src": ["'self'", "data:", "blob:", "https://*.zoezi-education.com"],
+      "script-src-attr": ["'unsafe-inline'"],
+      "script-src": ["'self'",'https://code.jquery.com', 'https://cdnjs.cloudflare.com', 'https://cdn.jsdelivr.net', "'unsafe-inline'", "'unsafe-eval'"]
+    },
+  }
+}));
+
+// enable loading of resources across domains
+app.use((req, res, next) => {
+  res.removeHeader("Cross-Origin-Resource-Policy")
+  res.removeHeader("Cross-Origin-Embedder-Policy")
+  next()
+})
 
 const server = require('http').createServer(app);
 
