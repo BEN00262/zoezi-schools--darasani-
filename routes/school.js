@@ -75,6 +75,13 @@ router.put("/logo", [
 // [rateLimiter],
 router.post("/",  async (req, res) => {
     try {
+        // disable account creation :)
+        return res.json({
+            status: false,
+            message: "Registration for schools closed for now. Check again later"
+        })
+
+        // will enable this when we get the smtp stuff :)
         let { name, email, location, mpesaNumber, password, registrationNumber, confirmPassword } = req.body;
 
         if (!name || !email || !location || !mpesaNumber || !password || !confirmPassword || !registrationNumber) {
