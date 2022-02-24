@@ -205,7 +205,8 @@ router.get("/learner/:studentId/:paperID/:isSpecial?", async (req, res) => {
                 attempt_trees: {
                     isSpecial: false,
                     paper: {},
-                    trees
+                    trees,
+                    prevStates: []
                 },
 
                 plottable: plottable.map(x => ({
@@ -276,8 +277,7 @@ router.get("/learner/:studentId/:paperID/:isSpecial?", async (req, res) => {
                 // this is the questions
                 paper: _firstPaperID ? (await SpecialPaperModel.findOne({ _id: _firstPaperID }).populate("questions")) : {},
                 
-                // get the trees :)
-                trees: (plottable || []).map(x => ({
+                prevStates: (plottable || []).map(x => ({
                     ...x,
                     attemptTree: {
                         ...x.attemptTree,
@@ -286,13 +286,9 @@ router.get("/learner/:studentId/:paperID/:isSpecial?", async (req, res) => {
                                 [page]: content
                         }), {})
                     },
-
-                    // to keep the api happy :)
-                    score: {
-                        passed: x.attemptTree.score.passed,
-                        total: x.attemptTree.score.total,
-                    }
-                })) // these are the trees to be used in rendering the paper :)
+                })), // these are the trees to be used in rendering the paper :)
+                // get the trees :)
+                trees: []
             },
             plottable: plottable.map(x => ({
                 _id: x._id,
