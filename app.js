@@ -54,9 +54,10 @@ const server = require('http').createServer(app);
 // this is the function to do the informing through socket io :)
 const checkIfOnlineAndInform = require("./socketio")(server); // socketIO
 
-app.use(express.json())
-app.use(express.urlencoded({ extended:true }))
-app.use(cors())
+app.use(express.json());
+app.use(express.urlencoded({ extended:true }));
+
+// app.use(cors());
 
 // simple routes
 app.use('*/img', express.static(path.join(__dirname,'/public/img')));
