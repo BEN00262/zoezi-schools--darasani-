@@ -1,0 +1,1 @@
+import{j as e}from"./index.0d31a39b.js";import"./vendor.0b632b43.js";const o=({subject:n})=>e("div",{style:{display:"flex",flexDirection:"column",justifyContent:"center",alignItems:"center"},children:e("h5",{children:"To be Worked on :)"})});export{o as default};
