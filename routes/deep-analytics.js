@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 const { IsTeacherAuthenticated } = require("../configs");
-const { SubSubAccountModel, LibpaperModel, ZoeziQuestionModel } = require("../models");
+const { SubSubAccountModel, LibpaperModel, ZoeziQuestionModel, SpecialPaperModel, specialPaperHistoryModel } = require("../models");
 
 const router = require("express").Router();
 
@@ -20,12 +20,20 @@ router.get("/subject-mean/:classId/:grade/:subjectName", [
         }
 
         let [special_papers, normal_papers] = await Promise.all([
-            [],
+            specialPaperHistoryModel.aggregate([
+                {
+                    $match: {
+                        subsubAccountID: sub_sub_account._id.toString(),
+                        // fuzzy match this inorder to get all the subjects with the subject within it
+                        subject: req.params.subjectName 
+                    }
+                },
+                { $project: { studentID: 1, score: "$attemptTree.score" } }
+            ]),
             LibpaperModel.aggregate([
                 {
                     $match: {
                         subsubAccountID: sub_sub_account._id.toString(), 
-                        grade: req.params.grade, 
                         // fuzzy match this inorder to get all the subjects with the subject within it
                         subject: req.params.subjectName 
                     }
@@ -34,8 +42,10 @@ router.get("/subject-mean/:classId/:grade/:subjectName", [
             ])
         ]);
 
-        let active_students = [...new Set(normal_papers.map(x => x.studentID))].length;
-        let active_mean = normal_papers.reduce((acc, x) => acc + (x.score.passed / x.score.total), 0) / active_students;
+        let combined_papers = [...special_papers,...normal_papers];
+        
+        let active_students = [...new Set(combined_papers.map(x => x.studentID))].length;
+        let active_mean = combined_papers.reduce((acc, x) => acc + (x.score.passed / x.score.total), 0) / active_students;
 
         return res.json({ 
             status: true, 
@@ -53,13 +63,11 @@ router.get("/subject-mean/:classId/:grade/:subjectName", [
 
 
 // fetch most failed questions for a given subscription
-router.get("/:classId/:grade/:subjectName/:isSpecial?", [
+// fetch on the sub sub account id and the subject only :) --> that will always be linked to the given grade
+router.get("/:classId/:grade/:subjectName", [
     IsTeacherAuthenticated
 ], async (req, res) => {
     try {
-        let { isSpecial } = req.params;
-        isSpecial = isSpecial ? isSpecial.toLowerCase() === "special" : false;
-
         // get the sub sub account id
         let sub_sub_account = await SubSubAccountModel.findOne({ 
             parentID: mongoose.Types.ObjectId(req.params.classId),
@@ -70,38 +78,42 @@ router.get("/:classId/:grade/:subjectName/:isSpecial?", [
             throw new Error("Failed to fetch grade");
         }
 
-
-        if (isSpecial) {
-            // fetch the special questions
-            // start work on the special papers later :)
-            return res.json({ 
-                status: true, 
-                paper: {
-                    stats: [],
-                    students: sub_sub_account.students.length // the number of students in the class :)
-                } 
-            })
-        }
-
-        // fetch the normal questions from the library papers
-        // subsubAccountID
-        let paper_content = await LibpaperModel.aggregate([
-            { 
-                $match: { 
-                    subsubAccountID: sub_sub_account._id.toString(), 
-                    grade: req.params.grade, 
-                    subject: req.params.subjectName 
-                }
-            },
-            { $project: { content: 1 } }
+        // getting the paper_content ( normal papers ) and the special_paper_content ( special papers (kcpe for now) )
+        let [paper_content, special_paper_content] = await Promise.all([
+            LibpaperModel.aggregate([
+                {
+                    $match: { 
+                        subsubAccountID: sub_sub_account._id.toString(),
+                        subject: req.params.subjectName 
+                    }
+                },
+                { $project: { content: 1 } },
+            ]),
+            
+            // fetch the special papers and extract the questions from there 
+            specialPaperHistoryModel.aggregate([
+                {
+                    $match: { 
+                        subsubAccountID: sub_sub_account._id.toString(),
+                        subject: req.params.subjectName,
+                        isMarked: true // ensure the tree is marked buana :)
+                    }
+                },
+                { $project: { "attemptTree.pages.content": 1 } }
+            ])
         ]);
 
-        // create a function to do whatever we want :)
-        // how do we do this :)
-        // we loop and find unique ids and do whatever
-        // look at the types of the questions also
-        // we need to have a way :) resolve the data later :)
-        // group the questions by their id
+        special_paper_content = special_paper_content.map(({ attemptTree }) => {
+            return ({
+                content: attemptTree.pages.reduce((acc, x) => [
+                    ...acc,
+                    ...x.content
+                ], [])
+            })
+        }).reduce((acc, y) => ({
+            content: [ ...acc.content, ...y.content]
+        }), { content: [] });
+
         /*
             questionId: {
                 type: "normal" | "comprehension" (later probs kesho),
@@ -109,7 +121,8 @@ router.get("/:classId/:grade/:subjectName/:isSpecial?", [
             }
         */
     //    TODO: use proper names :)
-        let _result = paper_content.reduce((top_level_acc, u) => {
+            // TODO: use the optionIndex in the special paper content options
+        let _result = [...paper_content, special_paper_content].reduce((top_level_acc, u) => {
             let _top_level = u.content.reduce((acc, y) => {
                 if (y.questionType === "normal") {
                     let questionFound = acc[y.content.question.toString()];
@@ -140,22 +153,10 @@ router.get("/:classId/:grade/:subjectName/:isSpecial?", [
             }, {});
 
             return { ...top_level_acc, ..._top_level }
-        }, {})
+        }, {});
 
-        // do the magic of finding the 
-        // console.log(
-        //     _result.map(x => ({
-        //         ...x,
-        //         passed: x.status
-        //     }))
-        // )
-        // we are assuming that we are working with normal questions :)
+        // TODO: handle all question types :)
         let stats = Object.entries(_result).map(([questionId, {type: questionType, family}]) => {
-            // go into the family and gather analytics
-            // selected choices :)
-            // this is an array of the selected choices which we can then use to find the percentages
-
-            // the choices are an array of choice statistics
             /*
                 choiceId: count
             */
@@ -182,22 +183,11 @@ router.get("/:classId/:grade/:subjectName/:isSpecial?", [
         })
             .filter(x => x.failed > 0).sort((first, second) => (first.failed/first.students) < (second.failed/second.students) ? 1 : -1).slice(0,5); // take the top 5 questions
 
-        // console.log(stats);
-
         // resolve the questions
         stats = await Promise.all(stats.map(async (x) => ({
             ...x,
             question: await ZoeziQuestionModel.findOne({ _id: x.questionId })
         })));
-
-        // // filter the top five results and then return them :)
-        // console.log({
-        //     stats,
-        //     students: sub_sub_account.students.length // the number of students in the class :)
-        // });
-
-        // console.log(stats);
-
 
         return res.json({ 
             status: true, 
