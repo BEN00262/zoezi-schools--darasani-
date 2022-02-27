@@ -16,7 +16,8 @@ const {
   MarketRoute, 
   LibraryRoute,
   SubscriptionsRoute,
-  MiscRoute
+  MiscRoute,
+  DeepAnalyticsRoute
 } = require("./routes");
 const { SubscriptionsListener } = require("./listeners")
 
@@ -57,7 +58,7 @@ const checkIfOnlineAndInform = require("./socketio")(server); // socketIO
 app.use(express.json());
 app.use(express.urlencoded({ extended:true }));
 
-// app.use(cors());
+app.use(cors());
 
 // simple routes
 app.use('*/img', express.static(path.join(__dirname,'/public/img')));
@@ -72,6 +73,7 @@ app.use("/api/library", LibraryRoute);
 app.use("/api/learner", StudentRoute);
 app.use("/api/subject", SubjectRoute);
 app.use("/api/analytics", AnalyticsRoute);
+app.use("/api/deep-analytics", DeepAnalyticsRoute);
 app.use("/api/market", MarketRoute); // for purchasing stuff in the school solution :)
 app.use("/api/subscriptions", SubscriptionsRoute);
 

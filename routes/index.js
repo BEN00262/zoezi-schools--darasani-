@@ -10,5 +10,6 @@ module.exports = {
     MarketRoute: require("./market"),
     LibraryRoute: require("./library"),
     SubscriptionsRoute: require("./subscriptions"),
-    MiscRoute: require("./misc")
+    MiscRoute: require("./misc"),
+    DeepAnalyticsRoute: require("./deep-analytics")
 }
