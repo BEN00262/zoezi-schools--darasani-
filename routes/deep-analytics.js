@@ -43,7 +43,7 @@ router.get("/subject-mean/:classId/:grade/:subjectName", [
         ]);
 
         let combined_papers = [...special_papers,...normal_papers];
-        
+
         let active_students = [...new Set(combined_papers.map(x => x.studentID))].length;
         let active_mean = combined_papers.reduce((acc, x) => acc + (x.score.passed / x.score.total), 0) / active_students;
 
@@ -124,6 +124,7 @@ router.get("/:classId/:grade/:subjectName", [
             // TODO: use the optionIndex in the special paper content options
         let _result = [...paper_content, special_paper_content].reduce((top_level_acc, u) => {
             let _top_level = u.content.reduce((acc, y) => {
+                
                 if (y.questionType === "normal") {
                     let questionFound = acc[y.content.question.toString()];
     
@@ -147,19 +148,144 @@ router.get("/:classId/:grade/:subjectName", [
                             family: [y.content]
                         } 
                     }
+                } else if (y.questionType === "comprehension") {
+                    // TODO: compress this operation later
+                    let questionFound = acc[y.content.question.toString()];
+
+                    // comprehension stuff ( now reduce the question children )
+                    // return the data there ( we need to process the comprehension questions further )
+
+                    if (questionFound) {
+                        // also loop through the children and form something :)
+                        return {
+                            ...acc,
+                            [y.content.question.toString()]: {
+                                ...questionFound,
+                                family: [
+                                    ...questionFound.family,
+                                    y.content
+                                ]
+                            }
+                        }
+                    }
+
+                    return { 
+                        ...acc, 
+                        [y.content.question.toString()]: {
+                            type: "comprehension",
+                            family: [y.content]
+                        } 
+                    }
                 }
     
+                // we will ignore the old type of questions for now :)
                 return acc;
             }, {});
 
             return { ...top_level_acc, ..._top_level }
         }, {});
 
+        // we need to pre-process the comprehension questions a little further
+        // we just return the same stuff apart from the comprehension questions
+        _result = Object.entries(_result).reduce((acc, [questionId, { type: questionType, family }]) => {
+            if (questionType === "comprehension") {
+                // go through the entire family and gather the data :)
+                // what do we do :)
+                
+                return { 
+                    ...acc, 
+                    [questionId]:{ 
+                        type: questionType, 
+                        family, /*family.reduce((f_acc, x) => {
+                            // the children are sort of the content in the normal type of question 
+                            // the way we handle them is by doing what we do in the normal questions :)
+                            return [...f_acc, ...x.children]
+                        }, [])*/
+                        children: family.reduce((parent_acc, u) => {
+                            return ({
+                                ...parent_acc,
+                                ...u.children.reduce((children_acc, y) => {
+                                    // NOTE: all the children are of normal type so we dont have to check :)
+                                    let questionFound = parent_acc[y.question.toString()];
+            
+                                    if (questionFound) {
+                                        return {
+                                            ...children_acc,
+                                            [y.question.toString()]: {
+                                                ...questionFound,
+                                                family: [
+                                                    ...questionFound.family, // whatever was there before 
+                                                    y // the child's content
+                                                ]
+                                            }
+                                        }
+                                    }
+                    
+                                    return { 
+                                        ...children_acc, 
+                                        [y.question.toString()]: {
+                                            type: "normal", // NOTE: we can leave this here irregardless :)
+                                            family: [y]
+                                        } 
+                                    }
+                                }, {})
+                            })
+                        }, {})
+                    }
+                }
+            }
+
+            // just return it :)
+            return { ...acc, [questionId]:{ type: questionType, family, children: {} }}
+        }, {});
+
         // TODO: handle all question types :)
-        let stats = Object.entries(_result).map(([questionId, {type: questionType, family}]) => {
+        let stats = Object.entries(_result).map(([questionId, {type: questionType, family, children: comp_children}]) => {
             /*
                 choiceId: count
             */
+
+            // this is the processing for the normal paper questions :)
+            if (questionType === "comprehension") {
+                // process the comprehension questions here
+                // process the data now :)
+                // we use the same tactic as we use in the normal questions ( by default comprehension questions have only the default stuff );
+                // we need to resolve the children and do whatever man
+                // different ball game here
+                let _compStats = Object.entries(comp_children).map(([childQuestionId, { type: childQuestionType, family: childFamily }]) => {
+                    // we dont care for the type
+                    let _childStats = childFamily.reduce((acc, x) => {
+                        return ({
+                            passed: acc.passed + (x.status ? 1 : 0),
+                            failed: acc.failed + (!x.status ? 1 : 0),
+                            choices: {
+                                ...acc.choices,
+                                ...x.attempted_options.reduce((c_acc, y) => ({
+                                    ...c_acc,
+                                    [y.optionID]: 1 + (acc.choices[y.optionID] ? acc.choices[y.optionID] : 0)
+                                }), {})
+                            }
+                        })
+                    },{ passed: 0, failed: 0, choices: {} });
+
+                    return ({
+                        questionId: childQuestionId,
+                        students: family.length, // after we take the latest per student ( this will give the correct number )
+                        ..._childStats // shows the passed / failed 
+                    })
+                });
+
+                // for the perfomance and the analytics 
+                return ({
+                    questionId,
+                    students: family.length, // after we take the latest per student ( this will give the correct number )
+                    children_stats: _compStats, // shows the passed / failed
+                    ..._compStats.reduce((acc, x) => ({
+                        failed: acc.failed + x.failed,
+                        passed: acc.passed + x.passed
+                    }), { failed: 0, passed: 0})
+                })
+            }
 
             let stats = family.reduce((acc, x) => {
                 return ({
