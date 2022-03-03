@@ -68,6 +68,7 @@ router.get("/:classId/:grade/:subjectName", [
     IsTeacherAuthenticated
 ], async (req, res) => {
     try {
+        // return the correct number of students that did the papers :)
         // get the sub sub account id
         let sub_sub_account = await SubSubAccountModel.findOne({ 
             parentID: mongoose.Types.ObjectId(req.params.classId),
@@ -87,7 +88,7 @@ router.get("/:classId/:grade/:subjectName", [
                         subject: req.params.subjectName 
                     }
                 },
-                { $project: { content: 1 } },
+                { $project: { content: 1, studentID: 1 } },
             ]),
             
             // fetch the special papers and extract the questions from there 
@@ -99,9 +100,14 @@ router.get("/:classId/:grade/:subjectName", [
                         isMarked: true // ensure the tree is marked buana :)
                     }
                 },
-                { $project: { "attemptTree.pages.content": 1 } }
+                { $project: { "attemptTree.pages.content": 1, studentID: 1 } }
             ])
         ]);
+
+        // lets get the students who participated
+        let students_who_did_the_papers = [
+            ...new Set([...paper_content.map(x => x.studentID), ...special_paper_content.map(x => x.studentID)])
+        ]
 
         special_paper_content = special_paper_content.map(({ attemptTree }) => {
             return ({
@@ -287,6 +293,7 @@ router.get("/:classId/:grade/:subjectName", [
                 })
             }
 
+            // the stats ( the stats )
             let stats = family.reduce((acc, x) => {
                 return ({
                     passed: acc.passed + (x.status ? 1 : 0),
@@ -315,10 +322,12 @@ router.get("/:classId/:grade/:subjectName", [
             question: await ZoeziQuestionModel.findOne({ _id: x.questionId })
         })));
 
+        // students who did the paper :)
         return res.json({ 
             status: true, 
             paper: {
                 stats,
+                students_who_did: students_who_did_the_papers.length,
                 students: sub_sub_account.students.length // the number of students in the class :)
             } 
         })
