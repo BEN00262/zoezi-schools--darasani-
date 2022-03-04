@@ -25,10 +25,23 @@ router.get("/subject-mean/:classId/:grade/:subjectName", [
                     $match: {
                         subsubAccountID: sub_sub_account._id.toString(),
                         // fuzzy match this inorder to get all the subjects with the subject within it
-                        subject: req.params.subjectName 
+                        subject: req.params.subjectName,
+                        isMarked: true
                     }
                 },
-                { $project: { studentID: 1, score: "$attemptTree.score" } }
+                { $project: { studentID: 1, score: "$attemptTree.score", updatedAt: 1 } },
+                {
+                    $group: { 
+                        _id: "$studentID",
+                        lastPaper: {
+                            $max: {
+                                updatedAt: "$updatedAt",
+                                score: "$score",
+                                studentID: "$studentID"
+                            }
+                        },
+                    }
+                },
             ]),
             LibpaperModel.aggregate([
                 {
@@ -42,6 +55,7 @@ router.get("/subject-mean/:classId/:grade/:subjectName", [
             ])
         ]);
 
+        special_papers = special_papers.filter(x => x).map(x => x.lastPaper);
         let combined_papers = [...special_papers,...normal_papers];
 
         let active_students = [...new Set(combined_papers.map(x => x.studentID))].length;
@@ -91,7 +105,9 @@ router.get("/:classId/:grade/:subjectName", [
                 { $project: { content: 1, studentID: 1 } },
             ]),
             
-            // fetch the special papers and extract the questions from there 
+            // fetch the special papers and extract the questions from there
+            // special paper history :)
+            // we want to group the papers by the student id and pick the latest of the two :)
             specialPaperHistoryModel.aggregate([
                 {
                     $match: { 
@@ -100,9 +116,26 @@ router.get("/:classId/:grade/:subjectName", [
                         isMarked: true // ensure the tree is marked buana :)
                     }
                 },
-                { $project: { "attemptTree.pages.content": 1, studentID: 1 } }
+
+                // how do we group and take the latest addition
+                { $project: { "attemptTree.pages.content": 1, studentID: 1, updatedAt: 1 } },
+                {
+                    $group: { 
+                        _id: "$studentID",
+                        lastPaper: {
+                            $max: {
+                                updatedAt: "$updatedAt",
+                                attemptTree: "$attemptTree",
+                                studentID: "$studentID"
+                            }
+                        },
+                    }
+                },
             ])
         ]);
+
+        // we are done with this ( we are fetching the new papers done by the students :) )
+        special_paper_content = special_paper_content.filter(x => x).map(x => x.lastPaper);
 
         // lets get the students who participated
         let students_who_did_the_papers = [
