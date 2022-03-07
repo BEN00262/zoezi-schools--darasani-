@@ -108,6 +108,8 @@ router.get("/:classId/:grade/:subjectName", [
             // fetch the special papers and extract the questions from there
             // special paper history :)
             // we want to group the papers by the student id and pick the latest of the two :)
+            // find the position of the questions and also get their names :)
+            // gradeName | secondTier | category
             specialPaperHistoryModel.aggregate([
                 {
                     $match: { 
@@ -118,7 +120,16 @@ router.get("/:classId/:grade/:subjectName", [
                 },
 
                 // how do we group and take the latest addition
-                { $project: { "attemptTree.pages.content": 1, studentID: 1, updatedAt: 1 } },
+                // just get the paper id and then display the selected question :)
+                { 
+                    $project: { 
+                        "attemptTree.pages.content": 1, 
+                        studentID: 1, 
+                        updatedAt: 1, 
+                        gradeName: 1, secondTier: 1, category: 1,
+                        paperID: 1
+                    } 
+                },
                 {
                     $group: { 
                         _id: "$studentID",
@@ -126,7 +137,11 @@ router.get("/:classId/:grade/:subjectName", [
                             $max: {
                                 updatedAt: "$updatedAt",
                                 attemptTree: "$attemptTree",
-                                studentID: "$studentID"
+                                studentID: "$studentID",
+
+                                // i know it looks ugly ---> i will modify it when i get time
+                                gradeName: "$gradeName", secondTier: "$secondTier", category: "$category",
+                                paperID: "$paperID"
                             }
                         },
                     }
@@ -142,28 +157,50 @@ router.get("/:classId/:grade/:subjectName", [
             ...new Set([...paper_content.map(x => x.studentID), ...special_paper_content.map(x => x.studentID)])
         ]
 
-        special_paper_content = special_paper_content.map(({ attemptTree }) => {
+        // this can be slow ( optimize it later )
+        // the questions are still numbered i think :)
+        special_paper_content = special_paper_content.map(({ 
+            attemptTree, gradeName, secondTier, category, paperID 
+        }, position) => {
             return ({
+                // this is the place we flatten the pages
+                // we need a way to get the question positions
                 content: attemptTree.pages.reduce((acc, x) => [
                     ...acc,
                     ...x.content
-                ], [])
-            })
-        }).reduce((acc, y) => ({
-            content: [ ...acc.content, ...y.content]
-        }), { content: [] });
+                ], []),
 
+                // the general paper name
+                paperName: `${gradeName.toUpperCase()} | ${secondTier} | ${category}`,
+                paperID,
+                position: position + 1
+            })
+        }).reduce((acc, y) => ({ 
+            content: [ ...acc.content, ...y.content],
+
+            // metadata
+            paperName: y.paperName,
+            paperID: y.paperID,
+            position: y.position // this is wrong for now
+        }), { content: [], paperID: "", paperName: "", position: 0 });
+
+        // console.log(special_paper_content)
         /*
             questionId: {
                 type: "normal" | "comprehension" (later probs kesho),
-                family: []
+                family: [],
+                paperName: null,
+                paperID: null,
+                position: 0
             }
         */
     //    TODO: use proper names :)
             // TODO: use the optionIndex in the special paper content options
         let _result = [...paper_content, special_paper_content].reduce((top_level_acc, u) => {
-            let _top_level = u.content.reduce((acc, y) => {
-                
+            const { paperName, paperID } = u;
+
+            let _top_level = u.content.reduce((acc, y, position) => {
+
                 if (y.questionType === "normal") {
                     let questionFound = acc[y.content.question.toString()];
     
@@ -184,7 +221,10 @@ router.get("/:classId/:grade/:subjectName", [
                         ...acc, 
                         [y.content.question.toString()]: {
                             type: "normal",
-                            family: [y.content]
+                            family: [y.content],
+                            paperName, // if not present ( this will be null in the case of non special questions )
+                            paperID, // this suffers the same fate as stated above
+                            questionPosition: position + 1 // suffers the same fate
                         } 
                     }
                 } else if (y.questionType === "comprehension") {
@@ -212,7 +252,10 @@ router.get("/:classId/:grade/:subjectName", [
                         ...acc, 
                         [y.content.question.toString()]: {
                             type: "comprehension",
-                            family: [y.content]
+                            family: [y.content],
+                            paperName, // if not present ( this will be null in the case of non special questions )
+                            paperID, // this suffers the same fate as stated above
+                            questionPosition: position + 1 // suffers the same fate
                         } 
                     }
                 }
@@ -221,12 +264,12 @@ router.get("/:classId/:grade/:subjectName", [
                 return acc;
             }, {});
 
-            return { ...top_level_acc, ..._top_level }
+            return ({ ...top_level_acc, ..._top_level })
         }, {});
 
         // we need to pre-process the comprehension questions a little further
         // we just return the same stuff apart from the comprehension questions
-        _result = Object.entries(_result).reduce((acc, [questionId, { type: questionType, family }]) => {
+        _result = Object.entries(_result).reduce((acc, [questionId, { type: questionType, family, paperName, paperID, questionPosition }]) => {
             if (questionType === "comprehension") {
                 // go through the entire family and gather the data :)
                 // what do we do :)
@@ -240,6 +283,7 @@ router.get("/:classId/:grade/:subjectName", [
                             // the way we handle them is by doing what we do in the normal questions :)
                             return [...f_acc, ...x.children]
                         }, [])*/
+                        paperName, paperID, questionPosition,
                         children: family.reduce((parent_acc, u) => {
                             return ({
                                 ...parent_acc,
@@ -275,11 +319,15 @@ router.get("/:classId/:grade/:subjectName", [
             }
 
             // just return it :)
-            return { ...acc, [questionId]:{ type: questionType, family, children: {} }}
+            return { ...acc, [questionId]:{ 
+                type: questionType, 
+                family, 
+                children: {}, 
+                paperName, paperID, questionPosition }}
         }, {});
 
         // TODO: handle all question types :)
-        let stats = Object.entries(_result).map(([questionId, {type: questionType, family, children: comp_children}]) => {
+        let stats = Object.entries(_result).map(([questionId, {type: questionType, family, children: comp_children, paperName, paperID, questionPosition,}]) => {
             /*
                 choiceId: count
             */
@@ -319,6 +367,7 @@ router.get("/:classId/:grade/:subjectName", [
                     questionId,
                     students: family.length, // after we take the latest per student ( this will give the correct number )
                     children_stats: _compStats, // shows the passed / failed
+                    paperName, paperID, questionPosition,
                     ..._compStats.reduce((acc, x) => ({
                         failed: acc.failed + x.failed,
                         passed: acc.passed + x.passed
@@ -343,6 +392,7 @@ router.get("/:classId/:grade/:subjectName", [
 
             return ({
                 questionId,
+                paperName, paperID, questionPosition,
                 students: family.length, // after we take the latest per student ( this will give the correct number )
                 ...stats // shows the passed / failed 
             })
