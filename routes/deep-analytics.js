@@ -1,6 +1,10 @@
 const mongoose = require("mongoose");
 const { IsTeacherAuthenticated } = require("../configs");
-const { SubSubAccountModel, LibpaperModel, ZoeziQuestionModel, SpecialPaperModel, specialPaperHistoryModel } = require("../models");
+const { 
+    SubSubAccountModel, LibpaperModel, 
+    ZoeziQuestionModel, SpecialPaperModel, 
+    specialPaperHistoryModel 
+} = require("../models");
 
 const router = require("express").Router();
 
@@ -414,6 +418,22 @@ router.get("/:classId/:grade/:subjectName", [
                 students: sub_sub_account.students.length // the number of students in the class :)
             } 
         })
+    } catch(error) {
+        console.log(error);
+        return res.status(500).json({ status: false, error: "Unknown error!"})
+    }
+})
+
+router.get("/paper/:paperID", [
+    IsTeacherAuthenticated
+], async (req, res) => {
+    try {
+        // get the paper and then resolve the questions and then return it
+        let paper = await SpecialPaperModel.findOne({ 
+            _id: req.params.paperID 
+        }).populate('questions');
+
+        return res.json({ status: true, paper });
     } catch(error) {
         console.log(error);
         return res.status(500).json({ status: false, error: "Unknown error!"})
