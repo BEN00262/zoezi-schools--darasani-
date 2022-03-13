@@ -62,6 +62,32 @@ router.get("/subject-mean/:classId/:grade/:subjectName", [
         special_papers = special_papers.filter(x => x).map(x => x.lastPaper);
         let combined_papers = [...special_papers,...normal_papers];
 
+        // this is bad :)
+        let performance_percentages = combined_papers.map(({ studentID, score }) => ({
+            studentID,
+            perf: +(((score.passed / score.total) * 100).toFixed(0))
+        }))
+        
+        // remove the hard coding here :) do it later though
+        performance_percentages = performance_percentages.reduce((acc, current) => {
+            if (current.perf > 79) {
+                acc['80 - 100'] += 1;
+            }else if (current.perf > 64) {
+                acc['65 - 79'] += 1;
+            } else if (current.perf > 49) {
+                acc['50 - 64'] += 1;
+            } else {
+                acc['0 - 49'] += 1;
+            }
+
+            return acc
+        }, {
+            '0 - 49': 0,
+            '50 - 64': 0,
+            '65 - 79': 0,
+            '80 - 100': 0
+        });
+
         let active_students = [...new Set(combined_papers.map(x => x.studentID))].length;
         let active_mean = combined_papers.reduce((acc, x) => acc + (x.score.passed / x.score.total), 0) / active_students;
 
@@ -70,14 +96,15 @@ router.get("/subject-mean/:classId/:grade/:subjectName", [
             analytics: {
                 mean: active_mean,
                 active: active_students,
-                total: sub_sub_account.students.length
+                total: sub_sub_account.students.length,
+                performance_percentages
             }
         })
     } catch(error) {
         console.log(error);
         return res.status(500).json({ status: false, error: "Unknown error!"})
     }
-})
+});
 
 
 // fetch most failed questions for a given subscription
@@ -127,7 +154,7 @@ router.get("/:classId/:grade/:subjectName", [
                 // just get the paper id and then display the selected question :)
                 { 
                     $project: { 
-                        "attemptTree.pages.content": 1, 
+                        "attemptTree.pages": 1, 
                         studentID: 1, 
                         updatedAt: 1, 
                         gradeName: 1, secondTier: 1, category: 1,
@@ -161,6 +188,29 @@ router.get("/:classId/:grade/:subjectName", [
             ...new Set([...paper_content.map(x => x.studentID), ...special_paper_content.map(x => x.studentID)])
         ]
 
+        const compute_position = (() => {
+            let pages = [] // page:questions
+
+            return (page, page_content) => {
+                let questions_upto = pages[page];
+
+                if (!!!questions_upto) {
+                    pages[page] = page_content.reduce((acc, _page_content) => {
+                        return acc + (
+                            _page_content.questionType === 'comprehension' ?
+                            _page_content.content.children.length : 1
+                        )
+                    }, 0);
+                }
+
+                // lets assume that the pages are ranked from the 0 to (pageLength - 1)
+                // return questions_upto;
+                return pages.slice(0,page).reduce((acc, _page_questions) => 
+                    acc + _page_questions, 0
+                )
+            }
+        })();
+
         // this can be slow ( optimize it later )
         // the questions are still numbered i think :)
         special_paper_content = special_paper_content.map(({ 
@@ -169,10 +219,15 @@ router.get("/:classId/:grade/:subjectName", [
             return ({
                 // this is the place we flatten the pages
                 // we need a way to get the question positions
-                content: attemptTree.pages.reduce((acc, x) => [
-                    ...acc,
-                    ...x.content
-                ], []),
+                content: attemptTree.pages.reduce((acc, x) => {
+                    return [
+                        ...acc,
+                        ...x.content.map(y => ({
+                            ...y,
+                            position: compute_position(x.page, x.content)
+                        }))
+                    ]
+                }, []),
 
                 // the general paper name
                 paperName: `${gradeName.toUpperCase()} | ${secondTier} | ${category}`,
@@ -187,6 +242,8 @@ router.get("/:classId/:grade/:subjectName", [
             paperID: y.paperID,
             position: y.position // this is wrong for now
         }), { content: [], paperID: "", paperName: "", position: 0 });
+
+
 
         // console.log(special_paper_content)
         /*
@@ -203,7 +260,7 @@ router.get("/:classId/:grade/:subjectName", [
         let _result = [...paper_content, special_paper_content].reduce((top_level_acc, u) => {
             const { paperName, paperID } = u;
 
-            let _top_level = u.content.reduce((acc, y, position) => {
+            let _top_level = u.content.reduce((acc, y) => {
 
                 if (y.questionType === "normal") {
                     let questionFound = acc[y.content.question.toString()];
@@ -228,7 +285,7 @@ router.get("/:classId/:grade/:subjectName", [
                             family: [y.content],
                             paperName, // if not present ( this will be null in the case of non special questions )
                             paperID, // this suffers the same fate as stated above
-                            questionPosition: position + 1 // suffers the same fate
+                            questionPosition: y.position + 1 // suffers the same fate
                         } 
                     }
                 } else if (y.questionType === "comprehension") {
@@ -259,7 +316,7 @@ router.get("/:classId/:grade/:subjectName", [
                             family: [y.content],
                             paperName, // if not present ( this will be null in the case of non special questions )
                             paperID, // this suffers the same fate as stated above
-                            questionPosition: position + 1 // suffers the same fate
+                            questionPosition: y.position + 1// suffers the same fate
                         } 
                     }
                 }
@@ -408,6 +465,8 @@ router.get("/:classId/:grade/:subjectName", [
             ...x,
             question: await ZoeziQuestionModel.findOne({ _id: x.questionId })
         })));
+
+        // console.log(stats);
 
         // students who did the paper :)
         return res.json({ 
