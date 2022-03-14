@@ -81,12 +81,7 @@ router.get("/subject-mean/:classId/:grade/:subjectName", [
             }
 
             return acc
-        }, {
-            '0 - 49': 0,
-            '50 - 64': 0,
-            '65 - 79': 0,
-            '80 - 100': 0
-        });
+        }, { '0 - 49': 0, '50 - 64': 0, '65 - 79': 0, '80 - 100': 0 });
 
         let active_students = [...new Set(combined_papers.map(x => x.studentID))].length;
         let active_mean = combined_papers.reduce((acc, x) => acc + (x.score.passed / x.score.total), 0) / active_students;
