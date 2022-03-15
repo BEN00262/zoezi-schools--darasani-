@@ -160,7 +160,7 @@ const UserSchema = new mongoose.Schema({
 
 UserSchema.pre('save', function () {
   this.mpesaNumber = `+Managed_${nanoid(13)}`;
-  this.email = `${nanoid(13)}@${customAlphabet('abcdefghijklmnopqrstuvwxyz', 4)}.com`;
+  this.email = `${nanoid(13)}@${nanoid(4)}.com`;
 })
 
 const User = mongoose.model('User', UserSchema)
