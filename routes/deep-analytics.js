@@ -183,6 +183,7 @@ router.get("/:classId/:grade/:subjectName", [
             ...new Set([...paper_content.map(x => x.studentID), ...special_paper_content.map(x => x.studentID)])
         ]
 
+        // get the pages boundaries and then compute the question positions
         const compute_position = (() => {
             let pages = [] // page:questions
 
@@ -194,7 +195,7 @@ router.get("/:classId/:grade/:subjectName", [
                         return acc + (
                             _page_content.questionType === 'comprehension' ?
                             _page_content.content.children.length : 1
-                        )
+                        );
                     }, 0);
                 }
 
@@ -212,22 +213,25 @@ router.get("/:classId/:grade/:subjectName", [
             attemptTree, gradeName, secondTier, category, paperID 
         }, position) => {
             return ({
-                // this is the place we flatten the pages
-                // we need a way to get the question positions
                 content: attemptTree.pages.reduce((acc, x) => {
+                    let start_page_boundary = compute_position(x.page, x.content); // remove one page :(
+                
                     return [
                         ...acc,
-                        ...x.content.map(y => ({
-                            ...y,
-                            position: compute_position(x.page, x.content)
-                        }))
+                        ...x.content.map((y, question_offset_position) => {
+                            // compute the pages :)
+                            return ({
+                                ...y,
+                                position: start_page_boundary + question_offset_position + 1
+                            })
+                        })
                     ]
                 }, []),
 
                 // the general paper name
                 paperName: `${gradeName.toUpperCase()} | ${secondTier} | ${category}`,
                 paperID,
-                position: position + 1
+                position: position + 1 // this is useless
             })
         }).reduce((acc, y) => ({ 
             content: [ ...acc.content, ...y.content],
@@ -237,10 +241,7 @@ router.get("/:classId/:grade/:subjectName", [
             paperID: y.paperID,
             position: y.position // this is wrong for now
         }), { content: [], paperID: "", paperName: "", position: 0 });
-
-
-
-        // console.log(special_paper_content)
+        
         /*
             questionId: {
                 type: "normal" | "comprehension" (later probs kesho),
@@ -250,8 +251,8 @@ router.get("/:classId/:grade/:subjectName", [
                 position: 0
             }
         */
-    //    TODO: use proper names :)
-            // TODO: use the optionIndex in the special paper content options
+        // TODO: use proper names :)
+        // TODO: use the optionIndex in the special paper content options
         let _result = [...paper_content, special_paper_content].reduce((top_level_acc, u) => {
             const { paperName, paperID } = u;
 
@@ -280,7 +281,7 @@ router.get("/:classId/:grade/:subjectName", [
                             family: [y.content],
                             paperName, // if not present ( this will be null in the case of non special questions )
                             paperID, // this suffers the same fate as stated above
-                            questionPosition: y.position + 1 // suffers the same fate
+                            questionPosition: y.position // suffers the same fate
                         } 
                     }
                 } else if (y.questionType === "comprehension") {
@@ -311,7 +312,7 @@ router.get("/:classId/:grade/:subjectName", [
                             family: [y.content],
                             paperName, // if not present ( this will be null in the case of non special questions )
                             paperID, // this suffers the same fate as stated above
-                            questionPosition: y.position + 1// suffers the same fate
+                            questionPosition: y.position// suffers the same fate
                         } 
                     }
                 }
