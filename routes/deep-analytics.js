@@ -222,6 +222,7 @@ router.get("/:classId/:grade/:subjectName", [
                             // compute the pages :)
                             return ({
                                 ...y,
+                                // added the one since indexing starts from 0 and we want the first question to start at 1
                                 position: start_page_boundary + question_offset_position + 1
                             })
                         })
@@ -241,7 +242,7 @@ router.get("/:classId/:grade/:subjectName", [
             paperID: y.paperID,
             position: y.position // this is wrong for now
         }), { content: [], paperID: "", paperName: "", position: 0 });
-        
+
         /*
             questionId: {
                 type: "normal" | "comprehension" (later probs kesho),
