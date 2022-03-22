@@ -15,7 +15,7 @@ module.exports = async (req, res, next) => {
         let decoded =  await jwt.verify(authToken, process.env.JWT_SECRET);
 
         if(!decoded){
-            throw new Error("nothing..."); // we dont give a fuck here though
+            return res.status(403).json({ message:"Authorization required" }); // we dont give a fuck here though
         }
 
         // if its a school just resolve it :)

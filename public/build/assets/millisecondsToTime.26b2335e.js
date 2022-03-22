@@ -1,0 +1,1 @@
+function i(s,t=!1){const o=Math.floor(s/1e3%60),n=Math.floor(s/(1e3*60)%60),e=Math.floor(s/(1e3*60*60)%24),c=e<10?"0"+e:e,r=n<10?"0"+n:n,h=o<10?"0"+o:o;return`${t?"":`${c} hrs`} ${r} mins ${h} secs`}export{i as c};
