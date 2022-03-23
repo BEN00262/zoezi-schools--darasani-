@@ -27,6 +27,14 @@ module.exports = async (req, res, next) => {
         req.school = await SchoolModel.findOne({ _id:decoded._id });
         return next();
     }catch(error){
+        // check if the errors are from jwt
+        if (error instanceof jwt.JsonWebTokenError || 
+            error instanceof jwt.NotBeforeError || 
+            error instanceof jwt.TokenExpiredError
+        ) {
+            return res.status(403).json({ message:"Authorization required" })
+        }
+
         console.log(error);
         return res.status(500).json({message:"Unknown error. Contact the admin for more info"})
     }
