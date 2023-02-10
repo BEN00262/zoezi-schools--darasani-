@@ -64,7 +64,7 @@ router.post("/purchase/:subscriptionGradeId/:subscriptionId", [IsSchoolAuthentic
         let total_payable = subscription.price * sub_sub_accounts.reduce((acc, x) => acc + x.students.length, 0)
 
         // pass a stuff to indicate that this is a school payment
-        let payment_result = await paymentFunction(
+        let transactionId = await paymentFunction(
             req.school._id.toString(),
             req.school.mpesaNumber,
             total_payable, // the price :)
@@ -74,10 +74,6 @@ router.post("/purchase/:subscriptionGradeId/:subscriptionId", [IsSchoolAuthentic
             is_special, 
             sub_sub_accounts.map(x => x._id.toString()) // get the ids of the stuffs to be subscribed :)
         )
-
-        if (!payment_result || payment_result.status.toLowerCase() !== "pendingconfirmation") {
-            return res.json({ status: false, message: `Payment Failed. ${payment_result.description}` })
-        }
 
         // create the transaction stuff :)
         // this has a pending status by default :)
@@ -89,7 +85,7 @@ router.post("/purchase/:subscriptionGradeId/:subscriptionId", [IsSchoolAuthentic
                 name: `${x.name}${x.stream ? "| " + x.stream + " " : ""} | ${x.year}`,
                 students: x.classRef.students.length
             })),
-            transactionId: payment_result.transactionId,
+            transactionId,
             total: total_payable,
             subscriptionEnd: moment().add(subscription.days,'d'),
             subscriptionType: subscription.pricingType // specifying the type of the subscription :) 

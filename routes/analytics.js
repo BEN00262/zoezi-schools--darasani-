@@ -304,6 +304,7 @@ router.get("/learner/:studentId/:paperID/:isSpecial?", async (req, res) => {
         });
     } catch(error) {
         // for special ones we just copy the code down here :)
+        console.log("am the one")
         console.log(error);
         return res.status(500).json([])
     }

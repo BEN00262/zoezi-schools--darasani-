@@ -1,1 +1,0 @@
-function h(e,l=!1){let s=Math.floor(e/1e3%60),t=Math.floor(e/(1e3*60)%60),o=Math.floor(e/(1e3*60*60)%24),n=o<10?"0"+o:o,r=t<10?"0"+t:t,c=s<10?"0"+s:s;return`${l?"":`${n} hrs`} ${r} mins ${c} secs`}export{h as c};

@@ -1,7 +1,5 @@
-const africastalking = require('africastalking')({
-    apiKey: process.env.AT_APIKEY,
-    username: process.env.AT_USERNAME
-})
+const { Mpesa } = require("mpesa-api");
+const PendingPaymentsModel = require('../models/pending_payment');
 
 const _PHONE_NUMBER_REGEX = /^(\+254)[17]\d{8}$/
 
@@ -9,16 +7,38 @@ const formatPhoneNumber = phoneNumber => _PHONE_NUMBER_REGEX.test(phoneNumber)
 		? phoneNumber
 		: `+254${phoneNumber.substring(1, phoneNumber.length)}`;
 
-const payments = africastalking.PAYMENTS;
+
+const credentials = {
+    clientKey: process.env.CONSUMER_KEY,
+    clientSecret: process.env.CONSUMER_SECRET,
+    initiatorPassword: process.env.INITIATOR_PASSWD,
+    securityCredential: process.env.SECURITY_CRED
+};
+
+const mpesa = new Mpesa(credentials, process.env.MPESA_ENVIRONMENT);
 
 // by default this should be a school solution :)
-module.exports = (schoolID, schoolPhoneNumber, price, days, gradeID, gradeName, is_special, sub_account_ids) => {
-    const options = {
-        productName: process.env.AT_PRODUCTNAME,
-        phoneNumber: formatPhoneNumber(schoolPhoneNumber),
-        currencyCode: 'KES',
-        amount: price,
+module.exports = async (schoolID, schoolPhoneNumber, price, days, gradeID, gradeName, is_special, sub_account_ids) => {
+    schoolPhoneNumber = formatPhoneNumber(schoolPhoneNumber).slice(1);
 
+    const result = await mpesa.lipaNaMpesaOnline({
+        BusinessShortCode: +process.env.ZOEZI_MPESA_SHORTCODE,
+        Amount: price,
+        PartyA: schoolPhoneNumber,
+        PartyB: process.env.ZOEZI_MPESA_SHORTCODE,
+        PhoneNumber: schoolPhoneNumber,
+        CallBackURL: process.env.MPESA_CALLBACK_URL,
+        AccountReference: "Zoezi Education",
+        passKey: process.env.PASS_KEY,
+        TransactionType: "CustomerPayBillOnline" /* OPTIONAL */,
+    });
+
+    if (!result || result.ResponseCode !== "0") {
+        throw new Error(`Payment Failed. ${result.ResultDesc}`);
+    }
+
+    await PendingPaymentsModel.create({
+        transactionId: result.CheckoutRequestID,
         metadata: {
             foo: schoolID,
             bar: gradeID,
@@ -28,7 +48,7 @@ module.exports = (schoolID, schoolPhoneNumber, price, days, gradeID, gradeName, 
             akacha: (sub_account_ids || []).join(","), // this will be an array of those stuffs :)
             zebra: 'school'
         }
-    }
+    })
 
-    return payments.mobileCheckout(options)
+    return result.CheckoutRequestID
 }
