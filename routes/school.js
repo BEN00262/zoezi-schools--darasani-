@@ -76,10 +76,10 @@ router.put("/logo", [
 router.post("/",  async (req, res) => {
     try {
         // disable account creation :)
-        return res.json({
-            status: false,
-            message: "Registration for schools closed for now. Check again later"
-        })
+        // return res.json({
+        //     status: false,
+        //     message: "Registration for schools closed for now. Check again later"
+        // })
 
         // will enable this when we get the smtp stuff :)
         let { name, email, location, mpesaNumber, password, registrationNumber, confirmPassword } = req.body;
@@ -91,9 +91,20 @@ router.post("/",  async (req, res) => {
             })
         }
 
+        // check if the email or the school already exists
+        const existing_school = await SchoolModel.findOne({ email });
+
+        // do a proper check for the registration numbers later
+        if (existing_school) {
+            return res.status(400).json({
+                status: false,
+                message: "School with the email already exists"
+            })
+        }
+
         // this aint working buana
-        let salt = await bcrypt.genSalt(10)
-        password = await bcrypt.hash(password, salt)
+        let salt = await bcrypt.genSalt(10);
+        password = await bcrypt.hash(password, salt);
 
         let school = await SchoolModel.create({ name, email, location, mpesaNumber, password, registrationNumber })
         
